@@ -11,6 +11,25 @@ permissions:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: garagelog
+          POSTGRES_PASSWORD: garagelog
+          POSTGRES_DB: garagelog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U garagelog -d garagelog"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://garagelog:garagelog@127.0.0.1:5432/garagelog
+
     steps:
       - uses: actions/checkout@v7
 
@@ -26,6 +45,12 @@ jobs:
 
       - name: Check formatting
         run: uv run ruff format --check .
+
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+
+      - name: Check models match migrations
+        run: uv run alembic check
 
       - name: Run tests
         run: uv run pytest --cov=app --cov-report=term-missing
