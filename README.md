@@ -2,7 +2,7 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 1 (baza danych: SQLAlchemy, Alembic, testy na izolowanej bazie).
+> Projekt w budowie — obecnie etap 2 (konta użytkowników: rejestracja, logowanie, sesje, CSRF).
 
 ## Stack
 
@@ -39,6 +39,19 @@ uv run alembic check                                     # czy modele zgadzają 
 ```
 
 Wygenerowaną migrację zawsze trzeba przejrzeć przed commitem.
+
+## Bezpieczeństwo kont
+
+- Hasła hashowane algorytmem Argon2id; nieudane logowanie nie zdradza, czy konto istnieje.
+- Sesje po stronie serwera: w ciasteczku (`HttpOnly`, `SameSite=Lax`, `Secure` w produkcji)
+  jest losowy token, a w bazie tylko jego skrót SHA-256. Wylogowanie usuwa sesję z bazy;
+  sesja wygasa po 14 dniach; logowanie zawsze tworzy nowy token.
+- Ochrona CSRF dla każdego żądania POST: podpisany token (HMAC z `SECRET_KEY`) w ciasteczku
+  i w polu formularza, powiązany z bieżącą sesją.
+- Nagłówki bezpieczeństwa: Content-Security-Policy, `X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`.
+
+Szczegóły i uzasadnienia: [`app/security.py`](app/security.py).
 
 ## Testy i jakość kodu
 

@@ -15,11 +15,14 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import URL, Engine, create_engine, make_url, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.db import get_db
+from app.main import create_app
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TEST_DATABASE_NAME = "garagelog_test"
@@ -86,3 +89,12 @@ def db_session(db_engine: Engine) -> Iterator[Session]:
         finally:
             session.close()
             transaction.rollback()
+
+
+@pytest.fixture
+def client(settings: Settings, db_session: Session) -> Iterator[TestClient]:
+    """App client whose requests all use the test's (rolled back) database session."""
+    app = create_app(settings)
+    app.dependency_overrides[get_db] = lambda: db_session
+    with TestClient(app) as test_client:
+        yield test_client

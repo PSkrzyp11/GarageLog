@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from app.templating import templates
+from app.deps import CurrentUser
+from app.templating import render
 
 router = APIRouter()
 
 
-@router.get("/", response_class=HTMLResponse)
-def index(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "index.html")
+@router.get("/")
+def dashboard(request: Request, user: CurrentUser) -> HTMLResponse:
+    return render(request, "dashboard.html", {"user": user})
 
 
 @router.get("/health")

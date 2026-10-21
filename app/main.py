@@ -2,14 +2,40 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
-from app.routes import pages
+from app.deps import LoginRequired
+from app.routes import auth, pages
+from app.security import security_middleware, verify_csrf
+from app.templating import render
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+ERROR_MESSAGES = {
+    404: "Nie znaleziono strony.",
+    405: "Ta operacja nie jest dozwolona.",
+}
+
+
+async def redirect_to_login(request: Request, exc: Exception) -> Response:
+    return RedirectResponse(request.url_for("login_page"), status.HTTP_303_SEE_OTHER)
+
+
+async def render_http_error(request: Request, exc: Exception) -> Response:
+    assert isinstance(exc, StarletteHTTPException)
+    message = ERROR_MESSAGES.get(exc.status_code, exc.detail)
+    return render(
+        request,
+        "error.html",
+        {"status_code": exc.status_code, "message": message},
+        status_code=exc.status_code,
+        headers=exc.headers,
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -22,14 +48,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         engine.dispose()
 
-    # Server-rendered HTML app: the auto-generated OpenAPI docs are not needed.
     app = FastAPI(
-        title="GarageLog", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+        title="GarageLog",
+        # Server-rendered HTML app: the auto-generated OpenAPI docs are not needed.
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+        lifespan=lifespan,
+        # Applied to every route, so a new form cannot be added without CSRF protection.
+        dependencies=[Depends(verify_csrf)],
     )
     app.state.settings = settings
     app.state.session_factory = create_session_factory(engine)
 
+    app.middleware("http")(security_middleware)
+    app.add_exception_handler(LoginRequired, redirect_to_login)
+    app.add_exception_handler(StarletteHTTPException, render_http_error)
+
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(pages.router)
+    app.include_router(auth.router)
 
     return app

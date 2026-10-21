@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Pulpit — GarageLog{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>Twój garaż</h1>
+  <p>Jesteś zalogowany jako <strong>{{ user.email }}</strong>.</p>
+  <p class="muted">Tu pojawią się Twoje samochody — dodawanie aut to kolejny etap budowy aplikacji.</p>
+</section>
+{% endblock %}
