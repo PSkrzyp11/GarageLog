@@ -1,0 +1,28 @@
+{# Reusable form pieces. Import with: {% import "_forms.html" as forms %} #}
+
+{% macro field(name, label, type="text", value="", error=None, autocomplete=None, hint=None, attrs={}) %}
+<div class="field">
+  <label for="{{ name }}">{{ label }}</label>
+  <input
+    id="{{ name }}"
+    name="{{ name }}"
+    type="{{ type }}"
+    {% if type != "password" %}value="{{ value }}"{% endif %}
+    {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+    {% if error %}aria-invalid="true"{% endif %}
+    {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}
+    {% for key, val in attrs.items() %}{{ key }}="{{ val }}" {% endfor %}
+    required>
+  {% if error %}
+    <p class="field-error" id="{{ name }}-help">{{ error }}</p>
+  {% elif hint %}
+    <p class="field-hint" id="{{ name }}-help">{{ hint }}</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro form_alert(message) %}
+{% if message %}
+<div class="alert alert-error" role="alert">{{ message }}</div>
+{% endif %}
+{% endmacro %}

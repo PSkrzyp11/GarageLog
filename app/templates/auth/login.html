@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% block title %}Zaloguj się — GarageLog{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+  <h1>Zaloguj się</h1>
+  <p class="muted">Historia serwisowa, tankowania i koszty Twoich aut w jednym miejscu.</p>
+  {{ forms.form_alert(errors.get("form")) }}
+
+  <form method="post" action="{{ url_for('login') }}" class="form">
+    {{ csrf_input(request) }}
+    {{ forms.field("email", "Adres e-mail", type="email", value=email, error=errors.get("email"),
+                   autocomplete="email") }}
+    {{ forms.field("password", "Hasło", type="password", error=errors.get("password"),
+                   autocomplete="current-password") }}
+    <button type="submit" class="button">Zaloguj się</button>
+  </form>
+
+  <p class="muted">Nie masz konta? <a href="{{ url_for('register_page') }}">Załóż konto</a></p>
+</section>
+{% endblock %}

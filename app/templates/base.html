@@ -8,8 +8,20 @@
 </head>
 <body>
   <header class="site-header">
-    <div class="container">
-      <a class="brand" href="{{ url_for('index') }}">GarageLog</a>
+    <div class="container header-inner">
+      <a class="brand" href="{{ url_for('dashboard') }}">GarageLog</a>
+      <nav class="site-nav" aria-label="Konto">
+        {% if user %}
+          <span class="muted nav-email">{{ user.email }}</span>
+          <form method="post" action="{{ url_for('logout') }}" class="inline-form">
+            {{ csrf_input(request) }}
+            <button type="submit" class="button-link">Wyloguj</button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('login_page') }}">Zaloguj się</a>
+          <a href="{{ url_for('register_page') }}">Załóż konto</a>
+        {% endif %}
+      </nav>
     </div>
   </header>
 

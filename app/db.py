@@ -18,7 +18,8 @@ def create_session_factory(engine: Engine) -> sessionmaker[Session]:
 def get_db(request: Request) -> Iterator[Session]:
     """FastAPI dependency: one database session per request, closed afterwards.
 
-    The session does not commit on its own — services call `session.commit()` explicitly.
+    The session does not commit on its own: services only flush, and the route commits once
+    the whole operation succeeded. Anything not committed is rolled back when it closes.
     """
     with request.app.state.session_factory() as session:
         yield session
