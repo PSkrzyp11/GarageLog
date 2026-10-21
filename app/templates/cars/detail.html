@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
+
+<section class="card">
+  <div class="page-header">
+    <h1>{{ car.name }}</h1>
+    <a href="{{ url_for('edit_car_page', car_id=car.id) }}">Edytuj</a>
+  </div>
+  <p class="muted">{{ car | car_summary }}</p>
+
+  <dl class="facts">
+    <dt>Aktualny przebieg</dt>
+    <dd>{% if odometer_km is not none %}{{ odometer_km | km }}{% else %}Brak danych{% endif %}</dd>
+  </dl>
+
+  <p class="muted">Historia tankowań i wpisów serwisowych pojawi się tutaj w kolejnym etapie.</p>
+</section>
+
+<p class="danger-zone">
+  <a href="{{ url_for('delete_car_page', car_id=car.id) }}">Usuń auto</a>
+</p>
+{% endblock %}

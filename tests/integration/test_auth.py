@@ -1,9 +1,7 @@
-import re
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-from httpx2 import Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import User, UserSession
@@ -15,62 +13,17 @@ from app.security import (
     hash_password,
     hash_session_token,
 )
-
-EMAIL = "jan@example.com"
-PASSWORD = "bardzo tajne hasło"
-CSRF_INPUT = re.compile(r'name="csrf_token" value="([^"]+)"')
-
-
-def csrf_token_from(client: TestClient, path: str) -> str:
-    match = CSRF_INPUT.search(client.get(path).text)
-    assert match, f"no CSRF field on {path}"
-    return match.group(1)
-
-
-def register(client: TestClient, email: str = EMAIL, password: str = PASSWORD) -> Response:
-    return client.post(
-        "/register",
-        data={
-            "email": email,
-            "password": password,
-            "password_confirm": password,
-            "csrf_token": csrf_token_from(client, "/register"),
-        },
-        follow_redirects=False,
-    )
-
-
-def login(client: TestClient, email: str = EMAIL, password: str = PASSWORD) -> Response:
-    return client.post(
-        "/login",
-        data={
-            "email": email,
-            "password": password,
-            "csrf_token": csrf_token_from(client, "/login"),
-        },
-        follow_redirects=False,
-    )
-
-
-def logout(client: TestClient) -> Response:
-    # Every logged-in page has the logout form in the header.
-    token = csrf_token_from(client, "/")
-    return client.post("/logout", data={"csrf_token": token}, follow_redirects=False)
-
-
-def set_cookie(client: TestClient, name: str, value: str) -> None:
-    # Same domain as cookies set by the app, so the value replaces them instead of
-    # existing next to them.
-    client.cookies.set(name, value, domain="testserver.local")
-
-
-def is_logged_in(client: TestClient) -> bool:
-    return client.get("/", follow_redirects=False).status_code == 200
-
-
-def count(db: Session, model: type) -> int:
-    return db.scalar(select(func.count()).select_from(model))
-
+from tests.integration.helpers import (
+    EMAIL,
+    PASSWORD,
+    count,
+    csrf_token_from,
+    is_logged_in,
+    login,
+    logout,
+    register,
+    set_cookie,
+)
 
 # --- Registration -----------------------------------------------------------------------
 

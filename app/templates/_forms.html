@@ -1,8 +1,8 @@
 {# Reusable form pieces. Import with: {% import "_forms.html" as forms %} #}
 
-{% macro field(name, label, type="text", value="", error=None, autocomplete=None, hint=None, attrs={}) %}
+{% macro field(name, label, type="text", value="", error=None, autocomplete=None, hint=None, required=True, attrs={}) %}
 <div class="field">
-  <label for="{{ name }}">{{ label }}</label>
+  <label for="{{ name }}">{{ label }}{% if not required %} <span class="muted">(opcjonalnie)</span>{% endif %}</label>
   <input
     id="{{ name }}"
     name="{{ name }}"
@@ -12,13 +12,43 @@
     {% if error %}aria-invalid="true"{% endif %}
     {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}
     {% for key, val in attrs.items() %}{{ key }}="{{ val }}" {% endfor %}
+    {% if required %}required{% endif %}>
+  {{ help_text(name, error, hint) }}
+</div>
+{% endmacro %}
+
+{# options: list of (value, label) pairs #}
+{% macro select(name, label, options, value="", error=None, hint=None) %}
+<div class="field">
+  <label for="{{ name }}">{{ label }}</label>
+  <select id="{{ name }}" name="{{ name }}"
+    {% if error %}aria-invalid="true"{% endif %}
+    {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}
     required>
+    {% for option_value, option_label in options %}
+      <option value="{{ option_value }}" {% if option_value == value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+  </select>
+  {{ help_text(name, error, hint) }}
+</div>
+{% endmacro %}
+
+{% macro checkbox(name, label, checked=False, error=None, hint=None) %}
+<div class="field field-checkbox">
+  <input id="{{ name }}" name="{{ name }}" type="checkbox" value="on"
+    {% if checked %}checked{% endif %}
+    {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}>
+  <label for="{{ name }}">{{ label }}</label>
+  {{ help_text(name, error, hint) }}
+</div>
+{% endmacro %}
+
+{% macro help_text(name, error, hint) %}
   {% if error %}
     <p class="field-error" id="{{ name }}-help">{{ error }}</p>
   {% elif hint %}
     <p class="field-hint" id="{{ name }}-help">{{ hint }}</p>
   {% endif %}
-</div>
 {% endmacro %}
 
 {% macro form_alert(message) %}

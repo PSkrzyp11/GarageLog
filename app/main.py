@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -10,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.deps import LoginRequired
-from app.routes import auth, pages
+from app.routes import auth, cars, pages
 from app.security import security_middleware, verify_csrf
 from app.templating import render
 
@@ -36,6 +37,12 @@ async def render_http_error(request: Request, exc: Exception) -> Response:
         status_code=exc.status_code,
         headers=exc.headers,
     )
+
+
+async def render_not_found(request: Request, exc: Exception) -> Response:
+    # Forms are validated inside the routes, so FastAPI's own validation only fails for
+    # malformed URL parameters, e.g. /cars/abc or an out-of-range ID: that page does not exist.
+    return await render_http_error(request, StarletteHTTPException(status.HTTP_404_NOT_FOUND))
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -64,9 +71,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.middleware("http")(security_middleware)
     app.add_exception_handler(LoginRequired, redirect_to_login)
     app.add_exception_handler(StarletteHTTPException, render_http_error)
+    app.add_exception_handler(RequestValidationError, render_not_found)
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(pages.router)
     app.include_router(auth.router)
+    app.include_router(cars.router)
 
     return app

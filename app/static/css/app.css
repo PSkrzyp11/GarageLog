@@ -189,6 +189,134 @@ input[aria-invalid="true"] {
   filter: brightness(1.1);
 }
 
+.button-danger {
+  background: var(--color-error);
+}
+
+/* Links styled as buttons keep the button look. */
+a.button {
+  display: inline-block;
+  text-decoration: none;
+}
+
+select {
+  font: inherit;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+select:focus-visible,
+input[type="checkbox"]:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.field-checkbox {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+
+.field-checkbox input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.field-checkbox .field-error,
+.field-checkbox .field-hint {
+  grid-column: 2;
+}
+
+.form-card {
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.form-row {
+  display: grid;
+  gap: var(--space);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space);
+}
+
+/* Pages */
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--space) * 0.5);
+  margin-bottom: var(--space);
+}
+
+.page-header h1 {
+  margin: 0;
+}
+
+.car-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space);
+}
+
+.car-card h2 {
+  font-size: 1.25rem;
+  margin: 0 0 0.25rem;
+}
+
+.car-card p {
+  margin: 0.25rem 0;
+}
+
+.car-odometer {
+  font-weight: 600;
+}
+
+.empty-state {
+  text-align: center;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem var(--space);
+}
+
+.facts dt {
+  color: var(--color-muted);
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.danger-zone a {
+  color: var(--color-error);
+}
+
+@media (min-width: 40rem) {
+  .form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .car-list {
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  }
+}
+
 /* A form button that looks like a link (e.g. "Wyloguj"). */
 .button-link {
   font: inherit;
