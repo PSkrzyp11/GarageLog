@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Car, User
+from app.models import Car, OdometerReading, ServiceEntry, User
 from app.security import SESSION_COOKIE
 from app.services import auth as auth_service
 
@@ -69,3 +69,33 @@ def get_owned_car(
 
 
 OwnedCar = Annotated[Car, Depends(get_owned_car)]
+
+EntryId = Annotated[int, Path(ge=1, le=MAX_ID)]
+
+
+# Entries are looked up within the already-checked car. An entry of another car — even one of
+# the same user's cars — is not found, so the car in the URL always matches the entry.
+
+
+def get_owned_service_entry(entry_id: EntryId, car: OwnedCar, db: DbSession) -> ServiceEntry:
+    entry = db.scalars(
+        select(ServiceEntry).where(ServiceEntry.id == entry_id, ServiceEntry.car_id == car.id)
+    ).one_or_none()
+    if entry is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return entry
+
+
+def get_owned_reading(reading_id: EntryId, car: OwnedCar, db: DbSession) -> OdometerReading:
+    reading = db.scalars(
+        select(OdometerReading).where(
+            OdometerReading.id == reading_id, OdometerReading.car_id == car.id
+        )
+    ).one_or_none()
+    if reading is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return reading
+
+
+OwnedServiceEntry = Annotated[ServiceEntry, Depends(get_owned_service_entry)]
+OwnedReading = Annotated[OdometerReading, Depends(get_owned_reading)]

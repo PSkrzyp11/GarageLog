@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% set is_new = entry is none %}
+{% set heading = "Nowy odczyt licznika" if is_new else "Edytuj odczyt licznika" %}
+{% block title %}{{ heading }} — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('car_detail', car_id=car.id) }}">← {{ car.name }}</a></p>
+
+<section class="card form-card">
+  <h1>{{ heading }}</h1>
+  <p class="muted">Zapisz przebieg, gdy nie łączy się z tankowaniem ani serwisem — np. żeby
+    przypomnienia „co 15 000 km” miały aktualne dane.</p>
+
+  <form method="post" class="form"
+        action="{{ url_for('create_reading', car_id=car.id) if is_new
+                   else url_for('update_reading', car_id=car.id, reading_id=entry.id) }}">
+    {{ csrf_input(request) }}
+
+    <div class="form-row">
+      {{ forms.field("date", "Data", type="date", value=values.get("date", ""),
+                     error=errors.get("date"), attrs={"min": "1950-01-01", "max": today}) }}
+      {{ forms.field("odometer_km", "Przebieg (km)", value=values.get("odometer_km", ""),
+                     error=errors.get("odometer_km"), attrs={"inputmode": "numeric"}) }}
+    </div>
+
+    {{ forms.field("note", "Notatka", value=values.get("note", ""), error=errors.get("note"),
+                   required=False, attrs={"maxlength": 200}) }}
+
+    <div class="form-actions">
+      <button type="submit" class="button">{{ "Zapisz odczyt" if is_new else "Zapisz zmiany" }}</button>
+      <a href="{{ url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+      {% if not is_new %}
+        <a class="danger-link" href="{{ url_for('delete_reading_page', car_id=car.id, reading_id=entry.id) }}">Usuń odczyt</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

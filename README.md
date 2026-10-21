@@ -2,7 +2,7 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 3 (samochody: dodawanie, edycja, usuwanie, kontrola dostępu).
+> Projekt w budowie — obecnie etap 4 (historia serwisowa, odczyty licznika, spójność przebiegu).
 
 ## Stack
 

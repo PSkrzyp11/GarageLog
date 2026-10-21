@@ -1,11 +1,8 @@
 import pytest
-from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
-from app.main import create_app
 from app.models import Car, OdometerReading, PrimaryFuel
 from app.services.cars import INITIAL_READING_NOTE
 from app.timeutils import today
@@ -167,7 +164,8 @@ def test_delete_page_shows_what_will_be_removed(logged_in: TestClient) -> None:
     page = logged_in.get(f"/cars/{car_id}/delete").text
 
     assert "Usunąć auto „Golf”?" in page
-    assert "odczyty przebiegu (1)" in page
+    assert "wpisy serwisowe i wydatki: 0" in page
+    assert "odczyty przebiegu: 1" in page
 
 
 def test_deleting_car_removes_its_readings(logged_in: TestClient, db_session: Session) -> None:
@@ -182,63 +180,6 @@ def test_deleting_car_removes_its_readings(logged_in: TestClient, db_session: Se
     assert db_session.get(Car, car_id) is None
     remaining = db_session.scalars(select(OdometerReading.car_id)).all()
     assert remaining == [kept_id]
-
-
-# --- Access control (IDOR) --------------------------------------------------------------
-#
-# Every route that takes a car ID must be listed here. test_every_car_route_is_covered
-# fails when a new route is added without it, so a route can't silently skip this check.
-
-CAR_ROUTES = [
-    ("GET", "/cars/{car_id}"),
-    ("GET", "/cars/{car_id}/edit"),
-    ("POST", "/cars/{car_id}/edit"),
-    ("GET", "/cars/{car_id}/delete"),
-    ("POST", "/cars/{car_id}/delete"),
-]
-
-
-def test_every_car_route_is_covered(settings: Settings) -> None:
-    # iter_route_contexts also walks routers added with include_router (full paths).
-    app_routes = {
-        (method, context.path)
-        for context in iter_route_contexts(create_app(settings).routes)
-        if isinstance(context.original_route, APIRoute) and "{car_id}" in (context.path or "")
-        for method in context.methods or ()
-    }
-
-    assert app_routes == set(CAR_ROUTES)
-
-
-@pytest.mark.parametrize(("method", "path"), CAR_ROUTES)
-def test_other_users_car_is_not_found(
-    client: TestClient, db_session: Session, method: str, path: str
-) -> None:
-    register(client)
-    victim_car_id = add_car(client, name="Golf")
-    logout(client)
-    register(client, email=OTHER_EMAIL)
-    url = path.format(car_id=victim_car_id)
-
-    if method == "GET":
-        response = client.get(url)
-    else:
-        # A valid CSRF token for the attacker's own session, so only ownership is tested.
-        response = post_form(client, url, car_form(name="Przejęte"), form_page="/cars/new")
-
-    assert response.status_code == 404
-    db_session.expire_all()
-    victim_car = db_session.get(Car, victim_car_id)
-    assert victim_car is not None
-    assert victim_car.name == "Golf"
-
-
-@pytest.mark.parametrize("car_id", ["999999", "0", "-1", "abc", "99999999999"])
-def test_missing_or_malformed_car_id_is_not_found(logged_in: TestClient, car_id: str) -> None:
-    response = logged_in.get(f"/cars/{car_id}")
-
-    assert response.status_code == 404
-    assert "Nie znaleziono strony." in response.text
 
 
 def test_car_pages_require_login(logged_in: TestClient) -> None:

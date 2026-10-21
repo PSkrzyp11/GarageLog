@@ -8,6 +8,8 @@ from app.deps import CurrentUser, DbSession, FormData, OwnedCar
 from app.models import Car, PrimaryFuel, User
 from app.schemas import CarCreateForm, CarForm, form_errors, parse_form
 from app.services import cars as cars_service
+from app.services import entries as entries_service
+from app.services.entries import EntryKind
 from app.templating import render
 
 router = APIRouter(prefix="/cars")
@@ -65,7 +67,21 @@ def create_car(request: Request, user: CurrentUser, db: DbSession, data: FormDat
 
 
 @router.get("/{car_id}")
-def car_detail(request: Request, user: CurrentUser, car: OwnedCar, db: DbSession) -> Response:
+def car_detail(
+    request: Request,
+    user: CurrentUser,
+    car: OwnedCar,
+    db: DbSession,
+    kind: str = "",
+    year: str = "",
+) -> Response:
+    """The car with its timeline. ?kind=service|odometer and ?year=2025 filter the list;
+    unknown values are ignored (the filter just shows everything)."""
+    timeline = entries_service.car_timeline(db, car)
+    years = sorted({item.date.year for item in timeline}, reverse=True)
+    selected_kind = next((option for option in EntryKind if option.value == kind), None)
+    selected_year = int(year) if year.isdigit() and int(year) in years else None
+
     return render(
         request,
         "cars/detail.html",
@@ -73,6 +89,12 @@ def car_detail(request: Request, user: CurrentUser, car: OwnedCar, db: DbSession
             "user": user,
             "car": car,
             "odometer_km": cars_service.current_odometer_km(db, car),
+            "timeline": entries_service.filter_timeline(timeline, selected_kind, selected_year),
+            "has_entries": bool(timeline),
+            "kinds": list(EntryKind),
+            "years": years,
+            "selected_kind": selected_kind,
+            "selected_year": selected_year,
         },
     )
 
@@ -117,7 +139,7 @@ def delete_car_page(request: Request, user: CurrentUser, car: OwnedCar, db: DbSe
         {
             "user": user,
             "car": car,
-            "reading_count": cars_service.count_odometer_readings(db, car),
+            "counts": cars_service.count_entries(db, car),
         },
     )
 

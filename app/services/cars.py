@@ -8,11 +8,11 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-from sqlalchemy import Subquery, func, select
+from sqlalchemy import Subquery, func, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Car, OdometerReading, User
+from app.models import Car, OdometerReading, ServiceEntry, User
 from app.schemas import CarCreateForm, CarForm
 from app.timeutils import today
 
@@ -30,13 +30,17 @@ class CarSummary:
 
 
 def _odometer_values() -> Subquery:
-    """Every recorded mileage as (car_id, odometer_km).
+    """Every recorded mileage as (car_id, odometer_km), from all kinds of entries.
 
     The current mileage is the highest of them; it is never stored on the car, so editing or
-    deleting an entry can't leave a stale value behind. Service and fuel entries will be added
-    here (UNION ALL) in later stages.
+    deleting an entry can't leave a stale value behind. Fuel entries will be added in stage 5.
     """
-    return select(OdometerReading.car_id, OdometerReading.odometer_km).subquery()
+    return union_all(
+        select(OdometerReading.car_id, OdometerReading.odometer_km),
+        select(ServiceEntry.car_id, ServiceEntry.odometer_km).where(
+            ServiceEntry.odometer_km.is_not(None)
+        ),
+    ).subquery()
 
 
 def list_cars(db: Session, user: User) -> list[CarSummary]:
@@ -85,14 +89,25 @@ def update_car(db: Session, car: Car, form: CarForm) -> None:
             setattr(car, field, value)
 
 
-def count_odometer_readings(db: Session, car: Car) -> int:
-    return db.scalar(
-        select(func.count()).select_from(OdometerReading).where(OdometerReading.car_id == car.id)
+@dataclass(frozen=True)
+class EntryCounts:
+    odometer_readings: int
+    service_entries: int
+
+
+def count_entries(db: Session, car: Car) -> EntryCounts:
+    """What deleting the car would remove — shown on the confirmation page."""
+
+    def count(model: type[OdometerReading] | type[ServiceEntry]) -> int:
+        return db.scalar(select(func.count()).select_from(model).where(model.car_id == car.id))
+
+    return EntryCounts(
+        odometer_readings=count(OdometerReading), service_entries=count(ServiceEntry)
     )
 
 
 def delete_car(db: Session, car: Car) -> None:
-    # Readings (and later all other entries) are removed by ON DELETE CASCADE in the database.
+    # All entries are removed by ON DELETE CASCADE in the database.
     db.delete(car)
     db.flush()
 

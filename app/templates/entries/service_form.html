@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% set is_new = entry is none %}
+{% set heading = "Nowy wpis serwisowy" if is_new else "Edytuj wpis serwisowy" %}
+{% block title %}{{ heading }} — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('car_detail', car_id=car.id) }}">← {{ car.name }}</a></p>
+
+<section class="card form-card">
+  <h1>{{ heading }}</h1>
+  <p class="muted">Naprawa, przegląd, opony, ubezpieczenie — każdy wydatek poza paliwem.</p>
+
+  <form method="post" class="form"
+        action="{{ url_for('create_service_entry', car_id=car.id) if is_new
+                   else url_for('update_service_entry', car_id=car.id, entry_id=entry.id) }}">
+    {{ csrf_input(request) }}
+
+    {{ forms.field("title", "Co było robione", value=values.get("title", ""),
+                   error=errors.get("title"), hint="np. „Wymiana oleju i filtrów”",
+                   attrs={"maxlength": 120}) }}
+
+    <div class="form-row">
+      {{ forms.select("category", "Kategoria", category_options,
+                      value=values.get("category", ""), error=errors.get("category")) }}
+      {{ forms.field("cost_pln", "Koszt (zł)", value=values.get("cost_pln", ""),
+                     error=errors.get("cost_pln"), hint="np. 349,99",
+                     attrs={"inputmode": "decimal"}) }}
+    </div>
+
+    <div class="form-row">
+      {{ forms.field("date", "Data", type="date", value=values.get("date", ""),
+                     error=errors.get("date"), attrs={"min": "1950-01-01", "max": today}) }}
+      {{ forms.field("odometer_km", "Przebieg (km)", value=values.get("odometer_km", ""),
+                     error=errors.get("odometer_km"), required=False,
+                     hint="Jeśli jest na fakturze — pomaga liczyć koszt na kilometr.",
+                     attrs={"inputmode": "numeric"}) }}
+    </div>
+
+    {{ forms.textarea("notes", "Notatki", value=values.get("notes", ""), error=errors.get("notes"),
+                      hint="np. warsztat, numer faktury, użyte części", maxlength=2000) }}
+
+    <div class="form-actions">
+      <button type="submit" class="button">{{ "Dodaj wpis" if is_new else "Zapisz zmiany" }}</button>
+      <a href="{{ url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+      {% if not is_new %}
+        <a class="danger-link" href="{{ url_for('delete_service_entry_page', car_id=car.id, entry_id=entry.id) }}">Usuń wpis</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -1,12 +1,15 @@
 """Form validation. Messages are in Polish because they are shown to the user as they are."""
 
+import datetime as dt
 import re
 from collections.abc import Mapping
+from decimal import Decimal
 
 from email_validator import EmailNotValidError, validate_email
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
-from app.models import PrimaryFuel
+from app.formatting import format_date
+from app.models import PrimaryFuel, ServiceCategory
 from app.timeutils import today
 
 PASSWORD_MIN_LENGTH = 8
@@ -14,6 +17,8 @@ PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 MAX_ODOMETER_KM = 2_000_000
 MIN_PRODUCTION_YEAR = 1900
+EARLIEST_ENTRY_DATE = dt.date(1950, 1, 1)
+MAX_COST_PLN = Decimal("1000000")
 
 REQUIRED_MESSAGE = "To pole jest wymagane."
 
@@ -174,6 +179,18 @@ class CarForm(BaseModel):
         return value == "on" if isinstance(value, str) else value
 
 
+def check_odometer_range(value: int | None) -> int | None:
+    if value is not None and value > MAX_ODOMETER_KM:
+        raise ValueError("Przebieg nie może przekraczać 2 000 000 km.")
+    return value
+
+
+def require(value: object, message: str = REQUIRED_MESSAGE) -> object:
+    if value is None:
+        raise ValueError(message)
+    return value
+
+
 class CarCreateForm(CarForm):
     # Only asked when adding a car; later mileage comes from refuels, services and readings.
     initial_odometer_km: int
@@ -181,14 +198,115 @@ class CarCreateForm(CarForm):
     @field_validator("initial_odometer_km", mode="before")
     @classmethod
     def parse_odometer(cls, value: object) -> object:
-        value = parse_optional_int(value)
-        if value is None:
-            raise ValueError("Podaj aktualny przebieg.")
-        return value
+        return require(parse_optional_int(value), "Podaj aktualny przebieg.")
 
     @field_validator("initial_odometer_km")
     @classmethod
-    def check_odometer_range(cls, value: int) -> int:
-        if value > MAX_ODOMETER_KM:
-            raise ValueError("Przebieg nie może przekraczać 2 000 000 km.")
+    def check_odometer(cls, value: int) -> int | None:
+        return check_odometer_range(value)
+
+
+# --- Entries (service, odometer readings) -----------------------------------------------
+
+_MONEY = re.compile(r"\d+(\.\d{1,2})?", re.ASCII)
+
+
+def parse_money(value: object) -> object:
+    """'1 234,56' / '1234.56' → Decimal('1234.56'); '' → None.
+
+    Polish users type a decimal comma, so both separators are accepted. Spaces may group
+    thousands. Mixing ',' and '.' is rejected: "1.234,56" vs "1,234.56" is ambiguous.
+    """
+    if not isinstance(value, str):
         return value
+    cleaned = value.replace(" ", "").replace(" ", "").removesuffix("zł").strip()
+    if not cleaned:
+        return None
+    if "," in cleaned and "." in cleaned:
+        raise ValueError("Użyj jednego separatora dziesiętnego, np. 1234,56.")
+    cleaned = cleaned.replace(",", ".")
+    if not _MONEY.fullmatch(cleaned):
+        raise ValueError("Podaj kwotę, np. 249,99 (najwyżej dwa miejsca po przecinku).")
+    return Decimal(cleaned)
+
+
+def parse_entry_date(value: object) -> object:
+    """The ISO date sent by <input type="date">; must not be in the future."""
+    if not isinstance(value, str):
+        return value
+    if not value.strip():
+        raise ValueError("Podaj datę.")
+    try:
+        parsed = dt.date.fromisoformat(value.strip())
+    except ValueError:
+        raise ValueError("Podaj poprawną datę.") from None
+    if parsed > today():
+        raise ValueError("Data nie może być z przyszłości.")
+    if parsed < EARLIEST_ENTRY_DATE:
+        raise ValueError(f"Data nie może być wcześniejsza niż {format_date(EARLIEST_ENTRY_DATE)}.")
+    return parsed
+
+
+class ServiceEntryForm(BaseModel):
+    date: dt.date
+    odometer_km: int | None
+    category: ServiceCategory
+    title: str
+    notes: str | None
+    cost_pln: Decimal
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def check_date(cls, value: object) -> object:
+        return parse_entry_date(value)
+
+    @field_validator("odometer_km", mode="before")
+    @classmethod
+    def parse_odometer(cls, value: object) -> object:
+        return check_odometer_range(parse_optional_int(value))
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def check_category(cls, value: str) -> str:
+        if value not in {category.value for category in ServiceCategory}:
+            raise ValueError("Wybierz kategorię.")
+        return value
+
+    @field_validator("title")
+    @classmethod
+    def check_title(cls, value: str) -> str:
+        return require(optional_text(value, 120), "Opisz krótko, co było robione.")
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def check_notes(cls, value: str) -> str | None:
+        return optional_text(value, 2000)
+
+    @field_validator("cost_pln", mode="before")
+    @classmethod
+    def check_cost(cls, value: object) -> object:
+        cost = require(parse_money(value), "Podaj koszt (0, jeśli był bezpłatny).")
+        if cost > MAX_COST_PLN:
+            raise ValueError("Koszt nie może przekraczać 1 000 000 zł.")
+        return cost
+
+
+class OdometerReadingForm(BaseModel):
+    date: dt.date
+    odometer_km: int
+    note: str | None
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def check_date(cls, value: object) -> object:
+        return parse_entry_date(value)
+
+    @field_validator("odometer_km", mode="before")
+    @classmethod
+    def parse_odometer(cls, value: object) -> object:
+        return check_odometer_range(require(parse_optional_int(value), "Podaj przebieg."))
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def check_note(cls, value: str) -> str | None:
+        return optional_text(value, 200)

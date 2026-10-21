@@ -6,18 +6,11 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from app.formatting import format_date, format_km, format_pln
 from app.models import Car
 from app.security import csrf_input
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
-
-# Jinja2Templates enables autoescaping for .html files, which protects against XSS.
-NBSP = " "
-
-
-def format_km(value: int) -> str:
-    """120000 → '120 000 km' (Polish thousands separator; non-breaking spaces)."""
-    return f"{value:,}".replace(",", NBSP) + f"{NBSP}km"
 
 
 def car_summary(car: Car) -> str:
@@ -33,9 +26,12 @@ def car_summary(car: Car) -> str:
     return " · ".join(parts)
 
 
+# Jinja2Templates enables autoescaping for .html files, which protects against XSS.
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 templates.env.globals["csrf_input"] = csrf_input
 templates.env.filters["km"] = format_km
+templates.env.filters["pln"] = format_pln
+templates.env.filters["pl_date"] = format_date
 templates.env.filters["car_summary"] = car_summary
 
 

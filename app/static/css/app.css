@@ -193,6 +193,125 @@ input[aria-invalid="true"] {
   background: var(--color-error);
 }
 
+.button-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.danger-link {
+  color: var(--color-error);
+}
+
+textarea {
+  font: inherit;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  resize: vertical;
+}
+
+textarea:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Car timeline */
+
+.entry-actions {
+  margin-top: var(--space);
+}
+
+.timeline-section {
+  margin-top: calc(var(--space) * 1.5);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space);
+  margin-bottom: var(--space);
+}
+
+.filters .field {
+  min-width: 10rem;
+}
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: calc(var(--space) * 0.75);
+}
+
+.timeline-item {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.timeline-item h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.timeline-meta,
+.timeline-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.timeline-notes {
+  margin: 0.25rem 0 0;
+  white-space: pre-line; /* keep line breaks typed into notes */
+}
+
+.timeline-cost {
+  font-weight: 600;
+}
+
+.timeline-odometer {
+  border-left: 4px solid var(--color-border);
+}
+
+.timeline-service {
+  border-left: 4px solid var(--color-primary);
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+@media (min-width: 40rem) {
+  .timeline-item {
+    grid-template-columns: 9rem 1fr auto;
+    align-items: start;
+  }
+
+  .timeline-meta {
+    flex-direction: column;
+    align-items: start;
+    gap: 0.25rem;
+  }
+
+  .timeline-numbers {
+    flex-direction: column;
+    align-items: end;
+    gap: 0.25rem;
+  }
+}
+
 /* Links styled as buttons keep the button look. */
 a.button {
   display: inline-block;
