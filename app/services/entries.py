@@ -61,14 +61,15 @@ def ensure_odometer_consistent(
     """
     if odometer_km is None:
         return
-    conflict = find_conflict(_odometer_points(db, car, exclude), date, odometer_km)
+    conflict = find_conflict(odometer_points(db, car, exclude), date, odometer_km)
     if conflict is not None:
         raise EntryValidationError("odometer_km", conflict.message)
 
 
-def _odometer_points(
-    db: Session, car: Car, exclude: tuple[EntryKind, int] | None
+def odometer_points(
+    db: Session, car: Car, exclude: tuple[EntryKind, int] | None = None
 ) -> list[OdometerPoint]:
+    """Every recorded mileage of the car (readings, service entries, refuels)."""
     points = [
         OdometerPoint(reading.date, reading.odometer_km, READING_LABEL)
         for reading in db.scalars(select(OdometerReading).where(OdometerReading.car_id == car.id))

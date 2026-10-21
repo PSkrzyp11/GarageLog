@@ -8,8 +8,10 @@ from app.deps import CurrentUser, DbSession, FormData, OwnedCar
 from app.models import Car, PrimaryFuel, User
 from app.schemas import CarCreateForm, CarForm, form_errors, parse_form
 from app.services import cars as cars_service
+from app.services import costs as costs_service
 from app.services import entries as entries_service
 from app.services.entries import EntryKind
+from app.stats import MIN_DISTANCE_KM, Period
 from app.templating import render
 
 router = APIRouter(prefix="/cars")
@@ -95,6 +97,31 @@ def car_detail(
             "years": years,
             "selected_kind": selected_kind,
             "selected_year": selected_year,
+        },
+    )
+
+
+@router.get("/{car_id}/costs")
+def car_costs(
+    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, period: str = ""
+) -> Response:
+    """Cost summary for ?period=all|year|12m (anything else: the whole history)."""
+    selected = next((option for option in Period if option.value == period), Period.ALL)
+    summary = costs_service.car_cost_summary(db, car, selected)
+    categories = [
+        (costs_service.category_label(item.category), item.amount_pln, item.share_percent)
+        for item in summary.by_category
+    ]
+    return render(
+        request,
+        "cars/costs.html",
+        {
+            "user": user,
+            "car": car,
+            "summary": summary,
+            "categories": categories,
+            "periods": list(Period),
+            "min_distance_km": MIN_DISTANCE_KM,
         },
     )
 

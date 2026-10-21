@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{# "with context": the macro needs `request` for url_for #}
+{% from "cars/_tabs.html" import car_tabs with context %}
+
+{% block title %}Koszty — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
+
+<div class="page-header">
+  <h1>{{ car.name }}</h1>
+</div>
+{{ car_tabs(car, "costs") }}
+
+<form method="get" action="{{ url_for('car_costs', car_id=car.id) }}" class="filters">
+  <div class="field">
+    <label for="period">Okres</label>
+    <select id="period" name="period">
+      {% for option in periods %}
+        <option value="{{ option.value }}" {% if option == summary.period %}selected{% endif %}>{{ option.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="button button-secondary">Pokaż</button>
+</form>
+
+<p class="muted">
+  {% if summary.start %}Od {{ summary.start | pl_date }} do {{ summary.end | pl_date }}.{% else %}Wszystkie wpisy do {{ summary.end | pl_date }}.{% endif %}
+</p>
+
+{% if summary.expense_count == 0 %}
+  <section class="card empty-state">
+    <p>Brak wydatków w tym okresie.</p>
+    <p class="muted">Dodaj tankowanie albo wpis serwisowy, a podsumowanie pojawi się tutaj.</p>
+    <a class="button" href="{{ url_for('car_detail', car_id=car.id) }}">Przejdź do historii</a>
+  </section>
+{% else %}
+  <section class="stats">
+    <div class="card stat">
+      <h2>Koszt całkowity</h2>
+      <p class="stat-value">{{ summary.total_pln | pln }}</p>
+      <p class="muted">Liczba wpisów: {{ summary.expense_count }}</p>
+    </div>
+    <div class="card stat">
+      <h2>Paliwo</h2>
+      <p class="stat-value">{{ summary.fuel_pln | pln }}</p>
+      <p class="muted">{{ summary.fuel_share_percent }}% kosztu całkowitego</p>
+    </div>
+    <div class="card stat">
+      <h2>Pozostałe wydatki</h2>
+      <p class="stat-value">{{ summary.other_pln | pln }}</p>
+      <p class="muted">serwis, naprawy, opony, ubezpieczenie…</p>
+    </div>
+    <div class="card stat">
+      <h2>Koszt na kilometr</h2>
+      {% if summary.cost_per_km_pln is not none %}
+        <p class="stat-value">{{ summary.cost_per_km_pln | pln }}/km</p>
+        <p class="muted">Średnio na {{ summary.distance_km | km }}.</p>
+      {% else %}
+        <p class="stat-value stat-missing">Za mało danych</p>
+        <p class="muted">{{ summary.cost_per_km_reason }}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Podział na kategorie</h2>
+    <table class="cost-table">
+      <thead>
+        <tr><th scope="col">Kategoria</th><th scope="col">Kwota</th><th scope="col">Udział</th></tr>
+      </thead>
+      <tbody>
+        {% for label, amount, share in categories %}
+          <tr>
+            <th scope="row">{{ label }}</th>
+            <td>{{ amount | pln }}</td>
+            <td>
+              <progress max="100" value="{{ share }}" aria-hidden="true"></progress>
+              {{ share }}%
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+
+<section class="notes muted">
+  <h2>Jak liczymy</h2>
+  <ul>
+    <li>Koszt całkowity to suma tankowań i wszystkich innych wydatków z wybranego okresu.
+      Nie obejmuje ceny zakupu auta ani utraty jego wartości.</li>
+    <li>Koszt na kilometr to koszt całkowity podzielony przez przejechany dystans: najwyższy
+      przebieg w okresie minus ostatni przebieg sprzed okresu. Pokazujemy go od
+      {{ min_distance_km | km }}. To średnia — jednorazowe wydatki, np. roczne ubezpieczenie,
+      zawyżają ją w krótkich okresach.</li>
+  </ul>
+</section>
+{% endblock %}

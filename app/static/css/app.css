@@ -220,6 +220,98 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
+/* Car tabs */
+
+.tabs {
+  display: flex;
+  gap: var(--space);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space);
+}
+
+.tabs a {
+  padding: 0.5rem 0.25rem;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tabs a[aria-current="page"] {
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Cost summary */
+
+.stats {
+  display: grid;
+  gap: var(--space);
+  margin-bottom: var(--space);
+}
+
+.stat h2 {
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.stat p {
+  margin: 0.25rem 0 0;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-missing {
+  font-size: 1.15rem;
+  color: var(--color-muted);
+}
+
+.cost-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cost-table th,
+.cost-table td {
+  text-align: left;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cost-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
+/* The bar only repeats the percentage next to it; on phones it would not fit. */
+.cost-table progress {
+  display: none;
+  width: 4rem;
+  vertical-align: middle;
+}
+
+.notes {
+  margin-top: calc(var(--space) * 1.5);
+  font-size: 0.9rem;
+}
+
+.notes h2 {
+  font-size: 1rem;
+}
+
+@media (min-width: 40rem) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cost-table progress {
+    display: inline-block;
+  }
+}
+
 /* Car timeline */
 
 .entry-actions {
