@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% set is_new = entry is none %}
+{% set heading = "Nowe tankowanie" if is_new else "Edytuj tankowanie" %}
+{% block title %}{{ heading }} — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('car_detail', car_id=car.id) }}">← {{ car.name }}</a></p>
+
+<section class="card form-card">
+  <h1>{{ heading }}</h1>
+
+  <form method="post" class="form"
+        action="{{ url_for('create_fuel_entry', car_id=car.id) if is_new
+                   else url_for('update_fuel_entry', car_id=car.id, fuel_id=entry.id) }}">
+    {{ csrf_input(request) }}
+
+    <div class="form-row">
+      {{ forms.field("date", "Data", type="date", value=values.get("date", ""),
+                     error=errors.get("date"), attrs={"min": "1950-01-01", "max": today}) }}
+      {{ forms.field("odometer_km", "Przebieg (km)", value=values.get("odometer_km", ""),
+                     error=errors.get("odometer_km"), hint="Stan licznika przy dystrybutorze.",
+                     attrs={"inputmode": "numeric"}) }}
+    </div>
+
+    {% if fuel_options | length > 1 %}
+      {{ forms.select("fuel_type", "Paliwo", fuel_options,
+                      value=values.get("fuel_type", ""), error=errors.get("fuel_type")) }}
+    {% else %}
+      {# Only one fuel fits this car — no need to ask. #}
+      <input type="hidden" name="fuel_type" value="{{ fuel_options[0][0] }}">
+      {% if errors.get("fuel_type") %}
+        {{ forms.form_alert(errors.get("fuel_type")) }}
+      {% endif %}
+    {% endif %}
+
+    <div class="form-row">
+      {{ forms.field("liters", "Litry", value=values.get("liters", ""), error=errors.get("liters"),
+                     hint="np. 42,5", attrs={"inputmode": "decimal"}) }}
+      {{ forms.field("total_cost_pln", "Kwota (zł)", value=values.get("total_cost_pln", ""),
+                     error=errors.get("total_cost_pln"), hint="Razem, z paragonu.",
+                     attrs={"inputmode": "decimal"}) }}
+    </div>
+
+    {{ forms.checkbox("is_full_tank", "Zatankowano do pełna", checked=values.get("is_full_tank") == "on",
+                      hint="Spalanie liczymy tylko między dwoma tankowaniami do pełna.") }}
+
+    {{ forms.checkbox("missed_previous", "Pominąłem wcześniejsze tankowanie",
+                      checked=values.get("missed_previous") == "on",
+                      hint="Zaznacz, jeśli poprzednie tankowanie nie zostało zapisane — "
+                           "wtedy ten odcinek nie zafałszuje spalania.") }}
+
+    <div class="form-actions">
+      <button type="submit" class="button">{{ "Dodaj tankowanie" if is_new else "Zapisz zmiany" }}</button>
+      <a href="{{ url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+      {% if not is_new %}
+        <a class="danger-link" href="{{ url_for('delete_fuel_entry_page', car_id=car.id, fuel_id=entry.id) }}">Usuń tankowanie</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

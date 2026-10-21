@@ -1,6 +1,7 @@
-"""Service entries and odometer readings of one car (/cars/{car_id}/...)."""
+"""Service entries, refuels and odometer readings of one car (/cars/{car_id}/...)."""
 
 from collections.abc import Mapping
+from typing import Any
 
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -11,14 +12,27 @@ from app.deps import (
     DbSession,
     FormData,
     OwnedCar,
+    OwnedFuelEntry,
     OwnedReading,
     OwnedServiceEntry,
 )
-from app.formatting import decimal_for_input, format_date, format_km, format_pln
-from app.models import Car, OdometerReading, ServiceCategory, ServiceEntry, User
-from app.schemas import OdometerReadingForm, ServiceEntryForm, form_errors, parse_form
+from app.formatting import (
+    decimal_for_input,
+    format_date,
+    format_km,
+    format_liters,
+    format_pln,
+)
+from app.models import Car, FuelEntry, OdometerReading, ServiceCategory, ServiceEntry, User
+from app.schemas import (
+    FuelEntryForm,
+    OdometerReadingForm,
+    ServiceEntryForm,
+    form_errors,
+    parse_form,
+)
 from app.services import entries as entries_service
-from app.services.entries import OdometerConflictError
+from app.services.entries import EntryValidationError
 from app.templating import render
 from app.timeutils import today
 
@@ -37,8 +51,9 @@ def _form_page(
     user: User,
     car: Car,
     values: Mapping[str, str],
-    entry: ServiceEntry | OdometerReading | None,
+    entry: ServiceEntry | FuelEntry | OdometerReading | None,
     errors: Mapping[str, str] | None,
+    extra: Mapping[str, Any] | None = None,
 ) -> Response:
     return render(
         request,
@@ -49,8 +64,8 @@ def _form_page(
             "entry": entry,
             "values": values,
             "errors": errors or {},
-            "category_options": CATEGORY_OPTIONS,
             "today": today().isoformat(),
+            **(extra or {}),
         },
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT if errors else status.HTTP_200_OK,
     )
@@ -72,6 +87,13 @@ def _delete_page(
     )
 
 
+def _errors(exc: ValidationError | EntryValidationError) -> dict[str, str]:
+    """Form errors from either the form validation or a rule checked in the service."""
+    if isinstance(exc, ValidationError):
+        return form_errors(exc)
+    return {exc.field: str(exc)}
+
+
 # --- Service entries --------------------------------------------------------------------
 
 
@@ -83,7 +105,8 @@ def _service_form(
     entry: ServiceEntry | None = None,
     errors: Mapping[str, str] | None = None,
 ) -> Response:
-    return _form_page(request, "entries/service_form.html", user, car, values, entry, errors)
+    extra = {"category_options": CATEGORY_OPTIONS}
+    return _form_page(request, "entries/service_form.html", user, car, values, entry, errors, extra)
 
 
 @router.get("/service/new")
@@ -99,10 +122,8 @@ def create_service_entry(
     try:
         form = parse_form(ServiceEntryForm, data)
         entries_service.create_service_entry(db, car, form)
-    except ValidationError as exc:
-        return _service_form(request, user, car, data, errors=form_errors(exc))
-    except OdometerConflictError as exc:
-        return _service_form(request, user, car, data, errors={"odometer_km": str(exc)})
+    except (ValidationError, EntryValidationError) as exc:
+        return _service_form(request, user, car, data, errors=_errors(exc))
 
     db.commit()
     return _back_to_car(request, car)
@@ -135,11 +156,8 @@ def update_service_entry(
     try:
         form = parse_form(ServiceEntryForm, data)
         entries_service.update_service_entry(db, entry, car, form)
-    except ValidationError as exc:
-        return _service_form(request, user, car, data, entry=entry, errors=form_errors(exc))
-    except OdometerConflictError as exc:
-        errors = {"odometer_km": str(exc)}
-        return _service_form(request, user, car, data, entry=entry, errors=errors)
+    except (ValidationError, EntryValidationError) as exc:
+        return _service_form(request, user, car, data, entry=entry, errors=_errors(exc))
 
     db.commit()
     return _back_to_car(request, car)
@@ -165,7 +183,111 @@ def delete_service_entry_page(
 def delete_service_entry(
     request: Request, car: OwnedCar, entry: OwnedServiceEntry, db: DbSession
 ) -> Response:
-    entries_service.delete_service_entry(db, entry)
+    entries_service.delete_entry(db, entry)
+    db.commit()
+    return _back_to_car(request, car)
+
+
+# --- Refuels ----------------------------------------------------------------------------
+
+
+def _fuel_form(
+    request: Request,
+    user: User,
+    car: Car,
+    values: Mapping[str, str],
+    entry: FuelEntry | None = None,
+    errors: Mapping[str, str] | None = None,
+) -> Response:
+    fuels = entries_service.allowed_fuel_types(car, entry)
+    extra = {"fuel_options": [(fuel.value, fuel.label) for fuel in fuels]}
+    return _form_page(request, "entries/fuel_form.html", user, car, values, entry, errors, extra)
+
+
+@router.get("/fuel/new")
+def new_fuel_entry_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+    defaults = {
+        "date": today().isoformat(),
+        "fuel_type": car.fuel_types[0].value,
+        "is_full_tank": "on",  # most refuels are to a full tank
+    }
+    return _fuel_form(request, user, car, defaults)
+
+
+@router.post("/fuel/new")
+def create_fuel_entry(
+    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, data: FormData
+) -> Response:
+    try:
+        form = parse_form(FuelEntryForm, data)
+        entries_service.create_fuel_entry(db, car, form)
+    except (ValidationError, EntryValidationError) as exc:
+        return _fuel_form(request, user, car, data, errors=_errors(exc))
+
+    db.commit()
+    return _back_to_car(request, car)
+
+
+@router.get("/fuel/{fuel_id}/edit")
+def edit_fuel_entry_page(
+    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedFuelEntry
+) -> Response:
+    values = {
+        "date": entry.date.isoformat(),
+        "odometer_km": str(entry.odometer_km),
+        "fuel_type": entry.fuel_type.value,
+        "liters": decimal_for_input(entry.liters),
+        "total_cost_pln": decimal_for_input(entry.total_cost_pln),
+        "is_full_tank": "on" if entry.is_full_tank else "",
+        "missed_previous": "on" if entry.missed_previous else "",
+    }
+    return _fuel_form(request, user, car, values, entry=entry)
+
+
+@router.post("/fuel/{fuel_id}/edit")
+def update_fuel_entry(
+    request: Request,
+    user: CurrentUser,
+    car: OwnedCar,
+    entry: OwnedFuelEntry,
+    db: DbSession,
+    data: FormData,
+) -> Response:
+    try:
+        form = parse_form(FuelEntryForm, data)
+        entries_service.update_fuel_entry(db, entry, car, form)
+    except (ValidationError, EntryValidationError) as exc:
+        return _fuel_form(request, user, car, data, entry=entry, errors=_errors(exc))
+
+    db.commit()
+    return _back_to_car(request, car)
+
+
+@router.get("/fuel/{fuel_id}/delete")
+def delete_fuel_entry_page(
+    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedFuelEntry
+) -> Response:
+    details = (
+        format_date(entry.date),
+        entry.fuel_type.label,
+        format_liters(entry.liters),
+        format_pln(entry.total_cost_pln),
+    )
+    return _delete_page(
+        request,
+        user,
+        car,
+        question="Usunąć tankowanie?",
+        details=" · ".join(details),
+        action_url=str(request.url_for("delete_fuel_entry", car_id=car.id, fuel_id=entry.id)),
+    )
+
+
+@router.post("/fuel/{fuel_id}/delete")
+def delete_fuel_entry(
+    request: Request, car: OwnedCar, entry: OwnedFuelEntry, db: DbSession
+) -> Response:
+    entries_service.delete_entry(db, entry)
     db.commit()
     return _back_to_car(request, car)
 
@@ -196,10 +318,8 @@ def create_reading(
     try:
         form = parse_form(OdometerReadingForm, data)
         entries_service.create_reading(db, car, form)
-    except ValidationError as exc:
-        return _reading_form(request, user, car, data, errors=form_errors(exc))
-    except OdometerConflictError as exc:
-        return _reading_form(request, user, car, data, errors={"odometer_km": str(exc)})
+    except (ValidationError, EntryValidationError) as exc:
+        return _reading_form(request, user, car, data, errors=_errors(exc))
 
     db.commit()
     return _back_to_car(request, car)
@@ -229,11 +349,8 @@ def update_reading(
     try:
         form = parse_form(OdometerReadingForm, data)
         entries_service.update_reading(db, reading, car, form)
-    except ValidationError as exc:
-        return _reading_form(request, user, car, data, reading=reading, errors=form_errors(exc))
-    except OdometerConflictError as exc:
-        errors = {"odometer_km": str(exc)}
-        return _reading_form(request, user, car, data, reading=reading, errors=errors)
+    except (ValidationError, EntryValidationError) as exc:
+        return _reading_form(request, user, car, data, reading=reading, errors=_errors(exc))
 
     db.commit()
     return _back_to_car(request, car)
@@ -257,6 +374,6 @@ def delete_reading_page(
 def delete_reading(
     request: Request, car: OwnedCar, reading: OwnedReading, db: DbSession
 ) -> Response:
-    entries_service.delete_reading(db, reading)
+    entries_service.delete_entry(db, reading)
     db.commit()
     return _back_to_car(request, car)

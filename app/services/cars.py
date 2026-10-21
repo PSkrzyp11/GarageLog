@@ -12,7 +12,7 @@ from sqlalchemy import Subquery, func, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Car, OdometerReading, ServiceEntry, User
+from app.models import Car, FuelEntry, OdometerReading, ServiceEntry, User
 from app.schemas import CarCreateForm, CarForm
 from app.timeutils import today
 
@@ -33,13 +33,14 @@ def _odometer_values() -> Subquery:
     """Every recorded mileage as (car_id, odometer_km), from all kinds of entries.
 
     The current mileage is the highest of them; it is never stored on the car, so editing or
-    deleting an entry can't leave a stale value behind. Fuel entries will be added in stage 5.
+    deleting an entry can't leave a stale value behind.
     """
     return union_all(
         select(OdometerReading.car_id, OdometerReading.odometer_km),
         select(ServiceEntry.car_id, ServiceEntry.odometer_km).where(
             ServiceEntry.odometer_km.is_not(None)
         ),
+        select(FuelEntry.car_id, FuelEntry.odometer_km),
     ).subquery()
 
 
@@ -93,16 +94,19 @@ def update_car(db: Session, car: Car, form: CarForm) -> None:
 class EntryCounts:
     odometer_readings: int
     service_entries: int
+    fuel_entries: int
 
 
 def count_entries(db: Session, car: Car) -> EntryCounts:
     """What deleting the car would remove — shown on the confirmation page."""
 
-    def count(model: type[OdometerReading] | type[ServiceEntry]) -> int:
+    def count(model: type[OdometerReading] | type[ServiceEntry] | type[FuelEntry]) -> int:
         return db.scalar(select(func.count()).select_from(model).where(model.car_id == car.id))
 
     return EntryCounts(
-        odometer_readings=count(OdometerReading), service_entries=count(ServiceEntry)
+        odometer_readings=count(OdometerReading),
+        service_entries=count(ServiceEntry),
+        fuel_entries=count(FuelEntry),
     )
 
 

@@ -62,6 +62,18 @@ class PrimaryFuel(StrEnum):
         return {"petrol": "Benzyna", "diesel": "Diesel"}[self.value]
 
 
+class FuelType(StrEnum):
+    """What went into the tank. A petrol car with an LPG system takes both."""
+
+    PETROL = "petrol"
+    DIESEL = "diesel"
+    LPG = "lpg"
+
+    @property
+    def label(self) -> str:
+        return {"petrol": "Benzyna", "diesel": "Diesel", "lpg": "LPG"}[self.value]
+
+
 class ServiceCategory(StrEnum):
     MAINTENANCE = "maintenance"
     REPAIR = "repair"
@@ -136,6 +148,14 @@ class Car(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+    @property
+    def fuel_types(self) -> list[FuelType]:
+        """Fuels this car can be refuelled with: its primary fuel, plus LPG if installed."""
+        fuels = [FuelType(self.primary_fuel.value)]
+        if self.has_lpg:
+            fuels.append(FuelType.LPG)
+        return fuels
+
 
 class OdometerReading(Base):
     """A mileage note that is not tied to a refuel or service (e.g. when the car was added).
@@ -180,6 +200,40 @@ class ServiceEntry(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     # NUMERIC, not float: money must add up exactly (0.1 + 0.2 == 0.3). Always PLN.
     cost_pln: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FuelEntry(Base):
+    """One refuel. The price per litre is not stored: it is total cost ÷ litres."""
+
+    __tablename__ = "fuel_entries"
+    __table_args__ = (
+        CheckConstraint("liters > 0", name="liters_positive"),
+        CheckConstraint("total_cost_pln > 0", name="total_cost_pln_positive"),
+        CheckConstraint("odometer_km >= 0", name="odometer_km_non_negative"),
+        enum_check("fuel_type", FuelType),
+        Index("ix_fuel_entries_car_id_date", "car_id", "date"),
+        # Consumption is calculated per fuel type, walking refuels in mileage order.
+        Index("ix_fuel_entries_car_id_fuel_type_odometer_km", "car_id", "fuel_type", "odometer_km"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    car_id: Mapped[int] = mapped_column(ForeignKey("cars.id", ondelete="CASCADE"))
+    date: Mapped[dt.date] = mapped_column(Date)
+    # Required, unlike for service entries: consumption is impossible without it.
+    odometer_km: Mapped[int]
+    fuel_type: Mapped[FuelType] = mapped_column(enum_column(FuelType))
+    liters: Mapped[Decimal] = mapped_column(Numeric(6, 2))
+    total_cost_pln: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    is_full_tank: Mapped[bool]
+    # "I forgot to log the refuel before this one": the litres since the last full tank are
+    # unknown, so this stretch must not be used to calculate consumption.
+    missed_previous: Mapped[bool] = mapped_column(default=False, server_default=false())
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

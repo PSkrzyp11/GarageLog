@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -7,11 +8,53 @@ from sqlalchemy import Engine, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Base, Car, OdometerReading, PrimaryFuel, User, UserSession
+from app.models import (
+    Base,
+    Car,
+    FuelEntry,
+    FuelType,
+    OdometerReading,
+    PrimaryFuel,
+    User,
+    UserSession,
+)
 
 
 def make_user(email: str = "jan@example.com") -> User:
     return User(email=email, password_hash="not-a-real-hash")
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "constraint"),
+    [
+        ("liters", Decimal("0"), "ck_fuel_entries_liters_positive"),
+        ("total_cost_pln", Decimal("0"), "ck_fuel_entries_total_cost_pln_positive"),
+        ("odometer_km", -1, "ck_fuel_entries_odometer_km_non_negative"),
+    ],
+)
+def test_fuel_entry_values_are_checked_by_the_database(
+    db_session: Session, field: str, value: object, constraint: str
+) -> None:
+    user = make_user()
+    db_session.add(user)
+    db_session.flush()
+    car = Car(user_id=user.id, name="Golf", primary_fuel=PrimaryFuel.PETROL)
+    db_session.add(car)
+    db_session.flush()
+    entry = FuelEntry(
+        car_id=car.id,
+        date=date(2025, 1, 1),
+        odometer_km=1000,
+        fuel_type=FuelType.PETROL,
+        liters=Decimal("40"),
+        total_cost_pln=Decimal("250"),
+        is_full_tank=True,
+    )
+    setattr(entry, field, value)
+    db_session.add(entry)
+
+    with pytest.raises(IntegrityError, match=constraint):
+        db_session.commit()
 
 
 def make_session(user: User, token_hash: str = "a" * 64) -> UserSession:

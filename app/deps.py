@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Car, OdometerReading, ServiceEntry, User
+from app.models import Car, FuelEntry, OdometerReading, ServiceEntry, User
 from app.security import SESSION_COOKIE
 from app.services import auth as auth_service
 
@@ -97,5 +97,15 @@ def get_owned_reading(reading_id: EntryId, car: OwnedCar, db: DbSession) -> Odom
     return reading
 
 
+def get_owned_fuel_entry(fuel_id: EntryId, car: OwnedCar, db: DbSession) -> FuelEntry:
+    entry = db.scalars(
+        select(FuelEntry).where(FuelEntry.id == fuel_id, FuelEntry.car_id == car.id)
+    ).one_or_none()
+    if entry is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return entry
+
+
 OwnedServiceEntry = Annotated[ServiceEntry, Depends(get_owned_service_entry)]
+OwnedFuelEntry = Annotated[FuelEntry, Depends(get_owned_fuel_entry)]
 OwnedReading = Annotated[OdometerReading, Depends(get_owned_reading)]
