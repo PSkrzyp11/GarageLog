@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{# "with context": the macro needs `request` for url_for #}
+{% from "cars/_tabs.html" import car_tabs with context %}
 
 {% block title %}{{ car.name }} — GarageLog{% endblock %}
 
 {% block content %}
 <p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
+
+{{ car_tabs(car, "history") }}
 
 <section class="card">
   <div class="page-header">

@@ -19,6 +19,10 @@
         <p class="car-odometer">
           {% if item.odometer_km is not none %}{{ item.odometer_km | km }}{% else %}Brak danych o przebiegu{% endif %}
         </p>
+        <p>
+          <a href="{{ url_for('car_costs', car_id=item.car.id) }}?period=year">Wydatki w {{ year }}</a>:
+          <strong>{{ year_costs.get(item.car.id, 0) | pln }}</strong>
+        </p>
       </li>
     {% endfor %}
   </ul>
