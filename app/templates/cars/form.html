@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% set is_new = car is none %}
+{% block title %}{{ "Dodaj auto" if is_new else "Edytuj auto" }} — GarageLog{% endblock %}
+
+{% block content %}
+<section class="card form-card">
+  <h1>{{ "Dodaj auto" if is_new else "Edytuj auto" }}</h1>
+
+  <form method="post" class="form"
+        action="{{ url_for('create_car') if is_new else url_for('update_car', car_id=car.id) }}">
+    {{ csrf_input(request) }}
+
+    {{ forms.field("name", "Nazwa", value=values.get("name", ""), error=errors.get("name"),
+                   hint="Jak chcesz nazywać to auto w aplikacji, np. „Golf”.",
+                   attrs={"maxlength": 60}) }}
+
+    <div class="form-row">
+      {{ forms.field("make", "Marka", value=values.get("make", ""), error=errors.get("make"),
+                     required=False, attrs={"maxlength": 60}) }}
+      {{ forms.field("model", "Model", value=values.get("model", ""), error=errors.get("model"),
+                     required=False, attrs={"maxlength": 60}) }}
+    </div>
+
+    <div class="form-row">
+      {{ forms.field("production_year", "Rok produkcji", value=values.get("production_year", ""),
+                     error=errors.get("production_year"), required=False,
+                     attrs={"inputmode": "numeric", "maxlength": 4}) }}
+      {{ forms.field("registration_number", "Numer rejestracyjny",
+                     value=values.get("registration_number", ""),
+                     error=errors.get("registration_number"), required=False,
+                     attrs={"maxlength": 15}) }}
+    </div>
+
+    {{ forms.select("primary_fuel", "Rodzaj paliwa", fuel_options,
+                    value=values.get("primary_fuel", ""), error=errors.get("primary_fuel")) }}
+
+    {{ forms.checkbox("has_lpg", "Auto ma instalację LPG", checked=values.get("has_lpg") == "on",
+                      hint="Tankowania LPG i benzyny będą liczone osobno.") }}
+
+    {% if is_new %}
+      {{ forms.field("initial_odometer_km", "Aktualny przebieg (km)",
+                     value=values.get("initial_odometer_km", ""),
+                     error=errors.get("initial_odometer_km"),
+                     hint="Zapiszemy go jako pierwszy odczyt licznika, z dzisiejszą datą.",
+                     attrs={"inputmode": "numeric"}) }}
+    {% endif %}
+
+    <div class="form-actions">
+      <button type="submit" class="button">{{ "Dodaj auto" if is_new else "Zapisz zmiany" }}</button>
+      <a href="{{ url_for('dashboard') if is_new else url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

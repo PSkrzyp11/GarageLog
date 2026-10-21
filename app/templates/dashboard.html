@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Pulpit — GarageLog{% endblock %}
+{% block title %}Twój garaż — GarageLog{% endblock %}
 
 {% block content %}
-<section class="card">
+<div class="page-header">
   <h1>Twój garaż</h1>
-  <p>Jesteś zalogowany jako <strong>{{ user.email }}</strong>.</p>
-  <p class="muted">Tu pojawią się Twoje samochody — dodawanie aut to kolejny etap budowy aplikacji.</p>
-</section>
+  {% if cars %}
+    <a class="button" href="{{ url_for('new_car_page') }}">Dodaj auto</a>
+  {% endif %}
+</div>
+
+{% if cars %}
+  <ul class="car-list">
+    {% for item in cars %}
+      <li class="card car-card">
+        <h2><a href="{{ url_for('car_detail', car_id=item.car.id) }}">{{ item.car.name }}</a></h2>
+        <p class="muted">{{ item.car | car_summary }}</p>
+        <p class="car-odometer">
+          {% if item.odometer_km is not none %}{{ item.odometer_km | km }}{% else %}Brak danych o przebiegu{% endif %}
+        </p>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <section class="card empty-state">
+    <p>Nie masz jeszcze żadnego auta.</p>
+    <p class="muted">Dodaj pierwsze auto, a potem zapisuj jego tankowania, naprawy i przeglądy.</p>
+    <a class="button" href="{{ url_for('new_car_page') }}">Dodaj pierwsze auto</a>
+  </section>
+{% endif %}
 {% endblock %}

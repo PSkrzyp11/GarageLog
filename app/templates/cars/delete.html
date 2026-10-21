@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Usuń auto — GarageLog{% endblock %}
+
+{% block content %}
+<section class="card form-card">
+  <h1>Usunąć auto „{{ car.name }}”?</h1>
+  <p>
+    Razem z autem zostaną trwale usunięte wszystkie powiązane dane:
+    odczyty przebiegu ({{ reading_count }}).
+  </p>
+  <p class="muted">Tej operacji nie można cofnąć.</p>
+
+  <form method="post" action="{{ url_for('delete_car', car_id=car.id) }}" class="form-actions">
+    {{ csrf_input(request) }}
+    <button type="submit" class="button button-danger">Tak, usuń auto</button>
+    <a href="{{ url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+  </form>
+</section>
+{% endblock %}

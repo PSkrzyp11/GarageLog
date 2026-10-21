@@ -1,19 +1,14 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Form, Request, Response, status
+from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
-from app.deps import DbSession, OptionalUser
-from app.schemas import LoginForm, RegisterForm, form_errors
+from app.deps import DbSession, FormData, OptionalUser
+from app.schemas import LoginForm, RegisterForm, form_errors, parse_form
 from app.security import SESSION_COOKIE, delete_cookie, set_cookie
 from app.services import auth as auth_service
 from app.templating import render
 
 router = APIRouter()
-
-# Form fields default to "" so that a missing field becomes a normal validation message.
-FormText = Annotated[str, Form()]
 
 LOGIN_FAILED_MESSAGE = "Nieprawidłowy e-mail lub hasło."
 
@@ -39,15 +34,10 @@ def register_page(request: Request, user: OptionalUser) -> Response:
 
 
 @router.post("/register")
-def register(
-    request: Request,
-    db: DbSession,
-    email: FormText = "",
-    password: FormText = "",
-    password_confirm: FormText = "",
-) -> Response:
+def register(request: Request, db: DbSession, data: FormData) -> Response:
+    email = data.get("email", "")
     try:
-        form = RegisterForm(email=email, password=password, password_confirm=password_confirm)
+        form = parse_form(RegisterForm, data)
     except ValidationError as exc:
         return render(
             request,
@@ -81,11 +71,10 @@ def login_page(request: Request, user: OptionalUser) -> Response:
 
 
 @router.post("/login")
-def login(
-    request: Request, db: DbSession, email: FormText = "", password: FormText = ""
-) -> Response:
+def login(request: Request, db: DbSession, data: FormData) -> Response:
+    email = data.get("email", "")
     try:
-        form = LoginForm(email=email, password=password)
+        form = parse_form(LoginForm, data)
     except ValidationError as exc:
         return render(
             request,

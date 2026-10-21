@@ -6,15 +6,31 @@ the template is never the access check.
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Path, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import User
+from app.models import Car, User
 from app.security import SESSION_COOKIE
 from app.services import auth as auth_service
 
 DbSession = Annotated[Session, Depends(get_db)]
+
+# Primary keys are PostgreSQL INTEGER; a larger number in the URL would be a database error.
+MAX_ID = 2_147_483_647
+
+
+async def get_form_data(request: Request) -> dict[str, str]:
+    """The submitted form as plain strings (file uploads are ignored).
+
+    Async because reading the request body is async; the endpoints using it stay synchronous.
+    """
+    form = await request.form()
+    return {key: value for key, value in form.items() if isinstance(value, str)}
+
+
+FormData = Annotated[dict[str, str], Depends(get_form_data)]
 
 
 class LoginRequired(Exception):
@@ -36,3 +52,20 @@ def require_user(user: Annotated[User | None, Depends(get_current_user)]) -> Use
 
 OptionalUser = Annotated[User | None, Depends(get_current_user)]
 CurrentUser = Annotated[User, Depends(require_user)]
+
+
+def get_owned_car(
+    car_id: Annotated[int, Path(ge=1, le=MAX_ID)], user: CurrentUser, db: DbSession
+) -> Car:
+    """The access check for every /cars/{car_id}/... page.
+
+    Ownership is part of the query itself. Someone else's car and a car that does not exist
+    both give 404, so the response does not reveal which car IDs exist.
+    """
+    car = db.scalars(select(Car).where(Car.id == car_id, Car.user_id == user.id)).one_or_none()
+    if car is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    return car
+
+
+OwnedCar = Annotated[Car, Depends(get_owned_car)]
