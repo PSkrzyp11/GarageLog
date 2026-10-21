@@ -1,0 +1,2 @@
+# Keep LF line endings everywhere (also on Windows checkouts) so files work inside Linux containers.
+* text=auto eol=lf
