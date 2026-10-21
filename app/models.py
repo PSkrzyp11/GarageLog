@@ -1,4 +1,5 @@
 import datetime as dt
+from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -9,8 +10,10 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     MetaData,
+    Numeric,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
     false,
     func,
@@ -57,6 +60,26 @@ class PrimaryFuel(StrEnum):
     @property
     def label(self) -> str:
         return {"petrol": "Benzyna", "diesel": "Diesel"}[self.value]
+
+
+class ServiceCategory(StrEnum):
+    MAINTENANCE = "maintenance"
+    REPAIR = "repair"
+    TIRES = "tires"
+    INSPECTION = "inspection"
+    INSURANCE = "insurance"
+    OTHER = "other"
+
+    @property
+    def label(self) -> str:
+        return {
+            "maintenance": "Serwis okresowy",
+            "repair": "Naprawa",
+            "tires": "Opony",
+            "inspection": "Badanie techniczne",
+            "insurance": "Ubezpieczenie",
+            "other": "Inne",
+        }[self.value]
 
 
 class User(Base):
@@ -133,4 +156,33 @@ class OdometerReading(Base):
     note: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ServiceEntry(Base):
+    """Any cost that is not fuel: service, repair, tyres, inspection, insurance, other."""
+
+    __tablename__ = "service_entries"
+    __table_args__ = (
+        CheckConstraint("cost_pln >= 0", name="cost_pln_non_negative"),
+        CheckConstraint("odometer_km >= 0", name="odometer_km_non_negative"),
+        enum_check("category", ServiceCategory),
+        Index("ix_service_entries_car_id_date", "car_id", "date"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    car_id: Mapped[int] = mapped_column(ForeignKey("cars.id", ondelete="CASCADE"))
+    date: Mapped[dt.date] = mapped_column(Date)
+    # Optional: old invoices often don't show the mileage.
+    odometer_km: Mapped[int | None]
+    category: Mapped[ServiceCategory] = mapped_column(enum_column(ServiceCategory))
+    title: Mapped[str] = mapped_column(String(120))
+    notes: Mapped[str | None] = mapped_column(Text)
+    # NUMERIC, not float: money must add up exactly (0.1 + 0.2 == 0.3). Always PLN.
+    cost_pln: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

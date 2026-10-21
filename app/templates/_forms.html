@@ -33,6 +33,17 @@
 </div>
 {% endmacro %}
 
+{% macro textarea(name, label, value="", error=None, hint=None, maxlength=None) %}
+<div class="field">
+  <label for="{{ name }}">{{ label }} <span class="muted">(opcjonalnie)</span></label>
+  <textarea id="{{ name }}" name="{{ name }}" rows="3"
+    {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+    {% if error %}aria-invalid="true"{% endif %}
+    {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}>{{ value }}</textarea>
+  {{ help_text(name, error, hint) }}
+</div>
+{% endmacro %}
+
 {% macro checkbox(name, label, checked=False, error=None, hint=None) %}
 <div class="field field-checkbox">
   <input id="{{ name }}" name="{{ name }}" type="checkbox" value="on"

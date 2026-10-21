@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Usuń wpis — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<section class="card form-card">
+  <h1>{{ question }}</h1>
+  <p>{{ details }}</p>
+  <p class="muted">Podsumowania auta przeliczą się bez tego wpisu. Tej operacji nie można cofnąć.</p>
+
+  <form method="post" action="{{ action_url }}" class="form-actions">
+    {{ csrf_input(request) }}
+    <button type="submit" class="button button-danger">Tak, usuń</button>
+    <a href="{{ url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+  </form>
+</section>
+{% endblock %}

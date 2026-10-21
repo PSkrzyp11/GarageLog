@@ -1,9 +1,10 @@
 import pytest
 from pydantic import ValidationError
 
+from app.formatting import format_km
 from app.models import Car, PrimaryFuel
 from app.schemas import CarCreateForm, CarForm, form_errors, parse_form
-from app.templating import car_summary, format_km
+from app.templating import car_summary
 from app.timeutils import today
 
 VALID = {
