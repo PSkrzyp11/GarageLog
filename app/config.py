@@ -16,7 +16,9 @@ class Settings(BaseSettings):
 
     app_env: Literal["development", "test", "production"] = "development"
     secret_key: str = DEFAULT_SECRET_KEY
-    database_url: str = "postgresql+psycopg://garagelog:garagelog@localhost:5432/garagelog"
+    # 127.0.0.1, not "localhost": on Windows "localhost" tries IPv6 (::1) first, while the
+    # compose database port is bound to IPv4 only — the connection would hang until timeout.
+    database_url: str = "postgresql+psycopg://garagelog:garagelog@127.0.0.1:5432/garagelog"
 
     @model_validator(mode="after")
     def require_real_secret_in_production(self) -> "Settings":

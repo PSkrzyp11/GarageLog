@@ -2,11 +2,11 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 0 (szkielet: FastAPI, Docker Compose, CI).
+> Projekt w budowie — obecnie etap 1 (baza danych: SQLAlchemy, Alembic, testy na izolowanej bazie).
 
 ## Stack
 
-Python 3.12+, FastAPI, Jinja2, PostgreSQL, Docker Compose, pytest, ruff, GitHub Actions, uv.
+Python 3.12+, FastAPI, Jinja2, PostgreSQL, SQLAlchemy 2, Alembic, Docker Compose, pytest, ruff, GitHub Actions, uv.
 
 ## Uruchomienie w Dockerze
 
@@ -15,18 +15,36 @@ cp .env.example .env
 docker compose up --build
 ```
 
+Kontener aplikacji przy starcie sam wykonuje migracje bazy (`alembic upgrade head`).
+
 Aplikacja: <http://127.0.0.1:8000>, health check: <http://127.0.0.1:8000/health>.
 
 ## Uruchomienie lokalne (development)
 
-Wymaga [uv](https://docs.astral.sh/uv/).
+Wymaga [uv](https://docs.astral.sh/uv/) i Dockera (dla PostgreSQL).
 
 ```bash
 uv sync
+docker compose up -d db
+uv run alembic upgrade head
 uv run uvicorn app.main:create_app --factory --reload
 ```
 
+## Migracje bazy
+
+```bash
+uv run alembic revision --autogenerate -m "opis zmiany"   # po zmianie app/models.py
+uv run alembic upgrade head
+uv run alembic check                                     # czy modele zgadzają się z migracjami
+```
+
+Wygenerowaną migrację zawsze trzeba przejrzeć przed commitem.
+
 ## Testy i jakość kodu
+
+Testy integracyjne używają prawdziwego PostgreSQL (`docker compose up -d db`). Przy każdym
+uruchomieniu tworzą od zera osobną bazę `garagelog_test` i wykonują na niej migracje; każdy test
+działa w transakcji wycofywanej na końcu, więc testy nie widzą swoich danych.
 
 ```bash
 uv run ruff check .
