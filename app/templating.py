@@ -6,7 +6,14 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from app.formatting import format_date, format_km, format_pln
+from app.formatting import (
+    format_consumption,
+    format_date,
+    format_km,
+    format_liters,
+    format_pln,
+    plural,
+)
 from app.models import Car
 from app.security import csrf_input
 
@@ -32,6 +39,9 @@ templates.env.globals["csrf_input"] = csrf_input
 templates.env.filters["km"] = format_km
 templates.env.filters["pln"] = format_pln
 templates.env.filters["pl_date"] = format_date
+templates.env.filters["liters"] = format_liters
+templates.env.filters["per_100km"] = format_consumption
+templates.env.filters["plural"] = plural
 templates.env.filters["car_summary"] = car_summary
 
 

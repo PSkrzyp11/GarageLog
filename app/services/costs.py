@@ -12,7 +12,16 @@ from sqlalchemy.orm import Session
 
 from app.models import Car, FuelEntry, ServiceCategory, ServiceEntry, User
 from app.services.entries import odometer_points
-from app.stats import FUEL, CostSummary, Expense, Period, summarize_costs
+from app.stats import (
+    FUEL,
+    ConsumptionSummary,
+    CostSummary,
+    Expense,
+    Period,
+    Refuel,
+    summarize_consumption,
+    summarize_costs,
+)
 from app.timeutils import today
 
 
@@ -34,6 +43,26 @@ def car_expenses(db: Session, car: Car) -> list[Expense]:
 
 def car_cost_summary(db: Session, car: Car, period: Period) -> CostSummary:
     return summarize_costs(car_expenses(db, car), odometer_points(db, car), period, today())
+
+
+def car_refuels(db: Session, car: Car) -> list[Refuel]:
+    return [
+        Refuel(
+            id=entry.id,
+            date=entry.date,
+            odometer_km=entry.odometer_km,
+            fuel_type=entry.fuel_type.value,
+            liters=entry.liters,
+            cost_pln=entry.total_cost_pln,
+            is_full_tank=entry.is_full_tank,
+            missed_previous=entry.missed_previous,
+        )
+        for entry in db.scalars(select(FuelEntry).where(FuelEntry.car_id == car.id))
+    ]
+
+
+def car_consumption(db: Session, car: Car, period: Period) -> ConsumptionSummary:
+    return summarize_consumption(car_refuels(db, car), period, today())
 
 
 def costs_since(db: Session, user: User, start: dt.date) -> dict[int, Decimal]:

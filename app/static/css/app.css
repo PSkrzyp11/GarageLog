@@ -250,6 +250,12 @@ textarea:focus-visible {
   margin-bottom: var(--space);
 }
 
+/* Grid items default to min-width: auto and would grow to fit a wide table inside;
+   0 lets the table scroll within the card instead of widening the page. */
+.stat {
+  min-width: 0;
+}
+
 .stat h2 {
   font-size: 0.95rem;
   color: var(--color-muted);
@@ -296,6 +302,30 @@ textarea:focus-visible {
 .notes {
   margin-top: calc(var(--space) * 1.5);
   font-size: 0.9rem;
+}
+
+.consumption {
+  margin-top: calc(var(--space) * 1.5);
+}
+
+.consumption h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Segment rows are dense; the table scrolls inside its card on narrow phones. */
+.consumption details {
+  margin-top: 0.5rem;
+  overflow-x: auto;
+}
+
+.consumption summary {
+  cursor: pointer;
+  color: var(--color-primary);
+}
+
+.segments {
+  font-size: 0.85rem;
 }
 
 .notes h2 {
