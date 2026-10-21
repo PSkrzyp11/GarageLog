@@ -1,0 +1,90 @@
+/* Mobile-first base styles. Colours and spacing live in variables so later stages reuse them. */
+:root {
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-text: #1d232b;
+  --color-muted: #5b6573;
+  --color-primary: #1f5fae;
+  --color-border: #dde2e8;
+  --radius: 8px;
+  --space: 1rem;
+  --max-width: 60rem;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  padding-block: calc(var(--space) * 1.5);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-inline: auto;
+  padding-inline: var(--space);
+}
+
+a {
+  color: var(--color-primary);
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-top: 0;
+}
+
+.site-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding-block: calc(var(--space) * 0.75);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.25rem;
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.site-footer {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  padding-block: var(--space);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space);
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+@media (min-width: 48rem) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .card {
+    padding: calc(var(--space) * 1.5);
+  }
+}
