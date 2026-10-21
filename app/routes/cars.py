@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
 from app.deps import CurrentUser, DbSession, FormData, OwnedCar
-from app.models import Car, PrimaryFuel, User
+from app.models import Car, FuelType, PrimaryFuel, User
 from app.schemas import CarCreateForm, CarForm, form_errors, parse_form
 from app.services import cars as cars_service
 from app.services import costs as costs_service
@@ -120,6 +120,8 @@ def car_costs(
             "car": car,
             "summary": summary,
             "categories": categories,
+            "consumption": costs_service.car_consumption(db, car, selected),
+            "fuel_labels": {fuel.value: fuel.label for fuel in FuelType},
             "periods": list(Period),
             "min_distance_km": MIN_DISTANCE_KM,
         },

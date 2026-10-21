@@ -119,3 +119,67 @@ def test_dashboard_shows_this_years_cost_matching_the_summary(
 
 def test_dashboard_shows_zero_for_a_car_without_expenses(client: TestClient, car_id: int) -> None:
     assert f"0,00{ZL}" in client.get("/").text
+
+
+# --- Fuel consumption -------------------------------------------------------------------
+
+
+def test_consumption_is_shown_with_its_segments(client: TestClient, car_id: int) -> None:
+    year = today().year - 1
+    add_fuel_entry(client, car_id, date=f"{year}-03-01", odometer_km="100000", liters="45")
+    add_fuel_entry(
+        client, car_id, date=f"{year}-03-10", odometer_km="100300", liters="20", is_full_tank=""
+    )
+    add_fuel_entry(
+        client,
+        car_id,
+        date=f"{year}-03-20",
+        odometer_km="100800",
+        liters="30",
+        total_cost_pln="200",
+    )
+
+    page = costs_page(client, car_id)
+    section = page[page.index("Spalanie") :]
+
+    # The plan's acceptance example: (20 + 30) l / 800 km = 6.25 → shown as 6,3.
+    assert "6,3 l/100 km" in section
+    assert "50,00 l na 800 km (1 odcinek)" in section
+    assert f"20.03.{year}" in section  # the segment's end date in the details table
+
+
+def test_consumption_explains_missing_data(client: TestClient, car_id: int) -> None:
+    add_fuel_entry(client, car_id, date=f"{today().year - 1}-03-01", odometer_km="100000")
+
+    section = costs_page(client, car_id).split("Spalanie", 1)[1]
+
+    assert "Potrzebne są co najmniej dwa tankowania do pełna tym paliwem." in section
+
+
+def test_lpg_car_shows_each_fuel_and_their_combined_cost(client: TestClient) -> None:
+    register(client, email="lpg@example.com")
+    car_id = add_car(client, name="Astra", initial_odometer_km="120000", has_lpg="on")
+    year = today().year - 1
+    for fuel, km, liters, cost, day in [
+        ("lpg", "100000", "40", "120", "03-01"),
+        ("petrol", "100100", "30", "190", "03-02"),
+        ("lpg", "100500", "45", "135", "03-10"),  # LPG: 45 l / 500 km = 9.0
+        ("petrol", "101100", "6", "40", "03-20"),  # petrol: 6 l / 1000 km = 0.6
+    ]:
+        add_fuel_entry(
+            client,
+            car_id,
+            fuel_type=fuel,
+            odometer_km=km,
+            liters=liters,
+            total_cost_pln=cost,
+            date=f"{year}-{day}",
+        )
+
+    section = costs_page(client, car_id).split("Spalanie", 1)[1]
+
+    assert "9,0 l/100 km" in section
+    assert "0,6 l/100 km" in section
+    assert section.index("Benzyna") < section.index("LPG")
+    # 135 zł / 500 km + 40 zł / 1000 km = 0.27 + 0.04
+    assert "Paliwo razem: <strong>0,31 zł/km</strong>" in section

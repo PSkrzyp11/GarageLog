@@ -33,6 +33,20 @@ def format_price_per_liter(total_cost: Decimal, liters: Decimal) -> str:
     return f"{format_pln(price)}/l"
 
 
+def format_consumption(value: Decimal) -> str:
+    """Decimal('6.3') → '6,3 l/100 km'."""
+    return f"{value:.1f}".replace(".", ",") + f"{NBSP}l/100{NBSP}km"
+
+
+def plural(count: int, one: str, few: str, many: str) -> str:
+    """Polish plural form: 1 odcinek, 2–4 odcinki (but 12–14 odcinków), 5+ odcinków."""
+    if count == 1:
+        return one
+    if count % 10 in (2, 3, 4) and count % 100 not in (12, 13, 14):
+        return few
+    return many
+
+
 def format_date(value: dt.date) -> str:
     """date(2025, 3, 7) → '07.03.2025'."""
     return value.strftime("%d.%m.%Y")
