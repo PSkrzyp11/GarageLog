@@ -1,4 +1,4 @@
-"""Entries of a car: service entries and odometer readings, and the car's timeline.
+"""Entries of a car — service entries, refuels, odometer readings — and the car's timeline.
 
 Functions here only flush; the route commits. The car (and entry) passed in were already
 checked for ownership by the dependencies in app/deps.py.
@@ -12,27 +12,38 @@ from enum import StrEnum
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Car, OdometerReading, ServiceEntry
+from app.formatting import format_liters, format_price_per_liter
+from app.models import Car, FuelEntry, FuelType, OdometerReading, ServiceEntry
 from app.odometer import OdometerPoint, find_conflict
-from app.schemas import OdometerReadingForm, ServiceEntryForm
+from app.schemas import FuelEntryForm, OdometerReadingForm, ServiceEntryForm
 
 READING_LABEL = "odczyt licznika"
+FUEL_LABEL = "tankowanie"
 
 
 class EntryKind(StrEnum):
     SERVICE = "service"
+    FUEL = "fuel"
     ODOMETER = "odometer"
 
     @property
     def label(self) -> str:
-        return {"service": "Serwis i wydatki", "odometer": "Odczyty licznika"}[self.value]
+        return {
+            "service": "Serwis i wydatki",
+            "fuel": "Tankowania",
+            "odometer": "Odczyty licznika",
+        }[self.value]
 
 
-class OdometerConflictError(Exception):
-    """The mileage contradicts another entry; str(error) is a message for the user."""
+class EntryValidationError(Exception):
+    """A rule that needs the database or the car was broken; shown next to `field`."""
+
+    def __init__(self, field: str, message: str) -> None:
+        super().__init__(message)
+        self.field = field
 
 
-# --- Odometer consistency ---------------------------------------------------------------
+# --- Shared checks ----------------------------------------------------------------------
 
 
 def ensure_odometer_consistent(
@@ -42,7 +53,7 @@ def ensure_odometer_consistent(
     odometer_km: int | None,
     exclude: tuple[EntryKind, int] | None = None,
 ) -> None:
-    """Raise OdometerConflictError if (date, mileage) contradicts the car's other entries.
+    """Raise EntryValidationError if (date, mileage) contradicts the car's other entries.
 
     `exclude` is the entry being edited, so it is not compared with its own old values.
     Two simultaneous requests are not locked against each other — acceptable for a personal
@@ -52,7 +63,7 @@ def ensure_odometer_consistent(
         return
     conflict = find_conflict(_odometer_points(db, car, exclude), date, odometer_km)
     if conflict is not None:
-        raise OdometerConflictError(conflict.message)
+        raise EntryValidationError("odometer_km", conflict.message)
 
 
 def _odometer_points(
@@ -72,7 +83,31 @@ def _odometer_points(
         )
         if exclude != (EntryKind.SERVICE, entry.id)
     ]
+    points += [
+        OdometerPoint(entry.date, entry.odometer_km, FUEL_LABEL)
+        for entry in db.scalars(select(FuelEntry).where(FuelEntry.car_id == car.id))
+        if exclude != (EntryKind.FUEL, entry.id)
+    ]
     return points
+
+
+def allowed_fuel_types(car: Car, entry: FuelEntry | None = None) -> list[FuelType]:
+    """The car's fuels — plus the edited entry's own fuel, so an old LPG refuel stays editable
+    after the LPG system was removed from the car's details."""
+    fuels = car.fuel_types
+    if entry is not None and entry.fuel_type not in fuels:
+        fuels.append(entry.fuel_type)
+    return fuels
+
+
+def _ensure_fuel_type_allowed(car: Car, form: FuelEntryForm, entry: FuelEntry | None) -> None:
+    if form.fuel_type not in allowed_fuel_types(car, entry):
+        raise EntryValidationError("fuel_type", "To auto nie jest tankowane tym paliwem.")
+
+
+def _apply(target: object, form: ServiceEntryForm | OdometerReadingForm | FuelEntryForm) -> None:
+    for field, value in form.model_dump().items():
+        setattr(target, field, value)
 
 
 # --- Service entries --------------------------------------------------------------------
@@ -92,14 +127,28 @@ def update_service_entry(
     ensure_odometer_consistent(
         db, car, form.date, form.odometer_km, exclude=(EntryKind.SERVICE, entry.id)
     )
-    for field, value in form.model_dump().items():
-        setattr(entry, field, value)
+    _apply(entry, form)
     db.flush()
 
 
-def delete_service_entry(db: Session, entry: ServiceEntry) -> None:
-    # Removing a value can never make the remaining ones inconsistent.
-    db.delete(entry)
+# --- Refuels ----------------------------------------------------------------------------
+
+
+def create_fuel_entry(db: Session, car: Car, form: FuelEntryForm) -> FuelEntry:
+    _ensure_fuel_type_allowed(car, form, entry=None)
+    ensure_odometer_consistent(db, car, form.date, form.odometer_km)
+    entry = FuelEntry(car_id=car.id, **form.model_dump())
+    db.add(entry)
+    db.flush()
+    return entry
+
+
+def update_fuel_entry(db: Session, entry: FuelEntry, car: Car, form: FuelEntryForm) -> None:
+    _ensure_fuel_type_allowed(car, form, entry)
+    ensure_odometer_consistent(
+        db, car, form.date, form.odometer_km, exclude=(EntryKind.FUEL, entry.id)
+    )
+    _apply(entry, form)
     db.flush()
 
 
@@ -120,13 +169,13 @@ def update_reading(
     ensure_odometer_consistent(
         db, car, form.date, form.odometer_km, exclude=(EntryKind.ODOMETER, reading.id)
     )
-    for field, value in form.model_dump().items():
-        setattr(reading, field, value)
+    _apply(reading, form)
     db.flush()
 
 
-def delete_reading(db: Session, reading: OdometerReading) -> None:
-    db.delete(reading)
+def delete_entry(db: Session, entry: ServiceEntry | FuelEntry | OdometerReading) -> None:
+    # Removing a value can never make the remaining ones inconsistent, so no check is needed.
+    db.delete(entry)
     db.flush()
 
 
@@ -140,9 +189,21 @@ class TimelineItem:
     date: dt.date
     odometer_km: int | None
     title: str
-    category_label: str | None = None
+    badge: str
     cost_pln: Decimal | None = None
+    details: str | None = None
     notes: str | None = None
+
+
+def _fuel_details(entry: FuelEntry) -> str:
+    parts = [
+        format_liters(entry.liters),
+        format_price_per_liter(entry.total_cost_pln, entry.liters),
+        "do pełna" if entry.is_full_tank else "dolane częściowo",
+    ]
+    if entry.missed_previous:
+        parts.append("pominięto wcześniejsze tankowanie")
+    return " · ".join(parts)
 
 
 def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
@@ -158,11 +219,24 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
             date=entry.date,
             odometer_km=entry.odometer_km,
             title=entry.title,
-            category_label=entry.category.label,
+            badge=entry.category.label,
             cost_pln=entry.cost_pln,
             notes=entry.notes,
         )
         for entry in db.scalars(select(ServiceEntry).where(ServiceEntry.car_id == car.id))
+    ]
+    items += [
+        TimelineItem(
+            kind=EntryKind.FUEL,
+            id=entry.id,
+            date=entry.date,
+            odometer_km=entry.odometer_km,
+            title=f"Tankowanie — {entry.fuel_type.label}",
+            badge="Tankowanie",
+            cost_pln=entry.total_cost_pln,
+            details=_fuel_details(entry),
+        )
+        for entry in db.scalars(select(FuelEntry).where(FuelEntry.car_id == car.id))
     ]
     items += [
         TimelineItem(
@@ -171,6 +245,7 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
             date=reading.date,
             odometer_km=reading.odometer_km,
             title="Odczyt licznika",
+            badge="Odczyt licznika",
             notes=reading.note,
         )
         for reading in db.scalars(select(OdometerReading).where(OdometerReading.car_id == car.id))

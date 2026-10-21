@@ -22,6 +22,17 @@ def format_pln(value: Decimal) -> str:
     return f"{sign}{_group_thousands(whole.lstrip('-'))},{fraction}{NBSP}zł"
 
 
+def format_liters(value: Decimal) -> str:
+    """Decimal('42.5') → '42,50 l'."""
+    return f"{value:.2f}".replace(".", ",") + f"{NBSP}l"
+
+
+def format_price_per_liter(total_cost: Decimal, liters: Decimal) -> str:
+    """Price per litre, derived (not stored): 275,45 zł ÷ 42,5 l → '6,48 zł/l'."""
+    price = (total_cost / liters).quantize(Decimal("0.01"))
+    return f"{format_pln(price)}/l"
+
+
 def format_date(value: dt.date) -> str:
     """date(2025, 3, 7) → '07.03.2025'."""
     return value.strftime("%d.%m.%Y")

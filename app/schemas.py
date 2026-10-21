@@ -9,7 +9,7 @@ from email_validator import EmailNotValidError, validate_email
 from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 from app.formatting import format_date
-from app.models import PrimaryFuel, ServiceCategory
+from app.models import FuelType, PrimaryFuel, ServiceCategory
 from app.timeutils import today
 
 PASSWORD_MIN_LENGTH = 8
@@ -19,6 +19,7 @@ MAX_ODOMETER_KM = 2_000_000
 MIN_PRODUCTION_YEAR = 1900
 EARLIEST_ENTRY_DATE = dt.date(1950, 1, 1)
 MAX_COST_PLN = Decimal("1000000")
+MAX_LITERS = 200
 
 REQUIRED_MESSAGE = "To pole jest wymagane."
 
@@ -208,26 +209,35 @@ class CarCreateForm(CarForm):
 
 # --- Entries (service, odometer readings) -----------------------------------------------
 
-_MONEY = re.compile(r"\d+(\.\d{1,2})?", re.ASCII)
+_DECIMAL = re.compile(r"\d+(\.\d{1,2})?", re.ASCII)
 
 
-def parse_money(value: object) -> object:
-    """'1 234,56' / '1234.56' → Decimal('1234.56'); '' → None.
+def parse_decimal(value: object, what: str, unit: str) -> object:
+    """'1 234,56' / '1234.56' → Decimal('1234.56'); '' → None. At most two decimal places.
 
-    Polish users type a decimal comma, so both separators are accepted. Spaces may group
-    thousands. Mixing ',' and '.' is rejected: "1.234,56" vs "1,234.56" is ambiguous.
+    Polish users type a decimal comma, so both separators are accepted, spaces may group
+    thousands and a trailing unit ("zł", "l") is ignored. Mixing ',' and '.' is rejected:
+    "1.234,56" vs "1,234.56" is ambiguous. `what` is an example used in error messages.
     """
     if not isinstance(value, str):
         return value
-    cleaned = value.replace(" ", "").replace(" ", "").removesuffix("zł").strip()
+    cleaned = value.replace(" ", "").replace(" ", "").removesuffix(unit).strip()
     if not cleaned:
         return None
     if "," in cleaned and "." in cleaned:
         raise ValueError("Użyj jednego separatora dziesiętnego, np. 1234,56.")
     cleaned = cleaned.replace(",", ".")
-    if not _MONEY.fullmatch(cleaned):
-        raise ValueError("Podaj kwotę, np. 249,99 (najwyżej dwa miejsca po przecinku).")
+    if not _DECIMAL.fullmatch(cleaned):
+        raise ValueError(f"Podaj {what} (najwyżej dwa miejsca po przecinku).")
     return Decimal(cleaned)
+
+
+def parse_money(value: object) -> object:
+    return parse_decimal(value, "kwotę, np. 249,99", "zł")
+
+
+def parse_liters(value: object) -> object:
+    return parse_decimal(value, "liczbę litrów, np. 42,5", "l")
 
 
 def parse_entry_date(value: object) -> object:
@@ -310,3 +320,55 @@ class OdometerReadingForm(BaseModel):
     @classmethod
     def check_note(cls, value: str) -> str | None:
         return optional_text(value, 200)
+
+
+class FuelEntryForm(BaseModel):
+    """A refuel. Whether the fuel type fits the car is checked in the service (it needs the car)."""
+
+    date: dt.date
+    odometer_km: int
+    fuel_type: FuelType
+    liters: Decimal
+    total_cost_pln: Decimal
+    is_full_tank: bool
+    missed_previous: bool
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def check_date(cls, value: object) -> object:
+        return parse_entry_date(value)
+
+    @field_validator("odometer_km", mode="before")
+    @classmethod
+    def parse_odometer(cls, value: object) -> object:
+        message = "Podaj przebieg z licznika — bez niego nie da się policzyć spalania."
+        return check_odometer_range(require(parse_optional_int(value), message))
+
+    @field_validator("fuel_type", mode="before")
+    @classmethod
+    def check_fuel_type(cls, value: str) -> str:
+        if value not in {fuel.value for fuel in FuelType}:
+            raise ValueError("Wybierz rodzaj paliwa.")
+        return value
+
+    @field_validator("liters", mode="before")
+    @classmethod
+    def check_liters(cls, value: object) -> object:
+        liters = require(parse_liters(value), "Podaj, ile litrów zatankowano.")
+        # A sanity limit that catches typos like an extra zero (a car tank is far smaller).
+        if not 0 < liters <= MAX_LITERS:
+            raise ValueError(f"Liczba litrów musi być większa od 0 i nie większa niż {MAX_LITERS}.")
+        return liters
+
+    @field_validator("total_cost_pln", mode="before")
+    @classmethod
+    def check_cost(cls, value: object) -> object:
+        cost = require(parse_money(value), "Podaj kwotę z paragonu.")
+        if not 0 < cost <= MAX_COST_PLN:
+            raise ValueError("Kwota musi być większa od 0 i nie większa niż 1 000 000 zł.")
+        return cost
+
+    @field_validator("is_full_tank", "missed_previous", mode="before")
+    @classmethod
+    def parse_checkbox(cls, value: object) -> object:
+        return value == "on" if isinstance(value, str) else value

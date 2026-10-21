@@ -18,6 +18,7 @@
   </dl>
 
   <div class="form-actions entry-actions">
+    <a class="button" href="{{ url_for('new_fuel_entry_page', car_id=car.id) }}">+ Tankowanie</a>
     <a class="button" href="{{ url_for('new_service_entry_page', car_id=car.id) }}">+ Serwis lub wydatek</a>
     <a class="button button-secondary" href="{{ url_for('new_reading_page', car_id=car.id) }}">+ Odczyt licznika</a>
   </div>
@@ -55,16 +56,19 @@
       {% for item in timeline %}
         {% if item.kind == "service" %}
           {% set edit_url = url_for('edit_service_entry_page', car_id=car.id, entry_id=item.id) %}
+        {% elif item.kind == "fuel" %}
+          {% set edit_url = url_for('edit_fuel_entry_page', car_id=car.id, fuel_id=item.id) %}
         {% else %}
           {% set edit_url = url_for('edit_reading_page', car_id=car.id, reading_id=item.id) %}
         {% endif %}
         <li class="card timeline-item timeline-{{ item.kind }}">
           <div class="timeline-meta">
             <time datetime="{{ item.date.isoformat() }}">{{ item.date | pl_date }}</time>
-            <span class="badge">{{ item.category_label or "Odczyt licznika" }}</span>
+            <span class="badge">{{ item.badge }}</span>
           </div>
           <div class="timeline-main">
             <h3><a href="{{ edit_url }}">{{ item.title }}</a></h3>
+            {% if item.details %}<p class="timeline-details">{{ item.details }}</p>{% endif %}
             {% if item.notes %}<p class="muted timeline-notes">{{ item.notes }}</p>{% endif %}
           </div>
           <div class="timeline-numbers">

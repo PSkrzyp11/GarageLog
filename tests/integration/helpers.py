@@ -13,7 +13,7 @@ OTHER_EMAIL = "anna@example.com"
 
 CSRF_INPUT = re.compile(r'name="csrf_token" value="([^"]+)"')
 CAR_URL = re.compile(r"/cars/(\d+)$")
-ENTRY_EDIT_LINK = re.compile(r"/cars/\d+/(service|odometer)/(\d+)/edit")
+ENTRY_EDIT_LINK = re.compile(r"/cars/\d+/(service|fuel|odometer)/(\d+)/edit")
 
 
 def csrf_token_from(client: TestClient, path: str) -> str:
@@ -95,6 +95,18 @@ def reading_form(**overrides: str) -> dict[str, str]:
     return {"date": "2025-03-12", "odometer_km": "", "note": ""} | overrides
 
 
+def fuel_form(**overrides: str) -> dict[str, str]:
+    data = {
+        "date": "2025-03-12",
+        "odometer_km": "100000",
+        "fuel_type": "petrol",
+        "liters": "42,50",
+        "total_cost_pln": "275,40",
+        "is_full_tank": "on",
+    }
+    return data | overrides
+
+
 def _newest_entry_id(client: TestClient, car_id: int, kind: str) -> int:
     """Entries redirect back to the car page; the new entry has the highest ID listed there."""
     page = client.get(f"/cars/{car_id}").text
@@ -108,6 +120,13 @@ def add_service_entry(client: TestClient, car_id: int, **overrides: str) -> int:
     response = post_form(client, url, service_form(**overrides), form_page=url)
     assert response.status_code == 303, response.text
     return _newest_entry_id(client, car_id, "service")
+
+
+def add_fuel_entry(client: TestClient, car_id: int, **overrides: str) -> int:
+    url = f"/cars/{car_id}/fuel/new"
+    response = post_form(client, url, fuel_form(**overrides), form_page=url)
+    assert response.status_code == 303, response.text
+    return _newest_entry_id(client, car_id, "fuel")
 
 
 def add_reading(client: TestClient, car_id: int, **overrides: str) -> int:

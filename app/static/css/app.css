@@ -7,6 +7,7 @@
   --color-primary: #1f5fae;
   --color-border: #dde2e8;
   --color-error: #b42318;
+  --color-fuel: #1d7a4d;
   --color-error-bg: #fef3f2;
   --radius: 8px;
   --space: 1rem;
@@ -282,6 +283,15 @@ textarea:focus-visible {
 
 .timeline-service {
   border-left: 4px solid var(--color-primary);
+}
+
+.timeline-fuel {
+  border-left: 4px solid var(--color-fuel);
+}
+
+.timeline-details {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
 }
 
 .badge {

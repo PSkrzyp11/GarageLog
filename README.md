@@ -2,7 +2,7 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 4 (historia serwisowa, odczyty licznika, spójność przebiegu).
+> Projekt w budowie — obecnie etap 5 (tankowania: benzyna, diesel, LPG; pełny bak, pominięte tankowania).
 
 ## Stack
 
