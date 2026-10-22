@@ -11,7 +11,13 @@
     <li>tankowania: {{ counts.fuel_entries }}</li>
     <li>przypomnienia: {{ counts.reminders }}</li>
     <li>odczyty przebiegu: {{ counts.odometer_readings }}</li>
-  </ul>  <p class="muted">Tej operacji nie można cofnąć.</p>
+  </ul>
+  <p>
+    Jeśli chcesz zachować historię, pobierz ją najpierw:
+    <a href="{{ url_for('export_service_entries', car_id=car.id) }}">serwis i wydatki (CSV)</a>,
+    <a href="{{ url_for('export_fuel_entries', car_id=car.id) }}">tankowania (CSV)</a>.
+  </p>
+  <p class="muted">Tej operacji nie można cofnąć.</p>
 
   <form method="post" action="{{ url_for('delete_car', car_id=car.id) }}" class="form-actions">
     {{ csrf_input(request) }}
