@@ -125,6 +125,9 @@ h1 {
 .field {
   display: grid;
   gap: 0.25rem;
+  /* Keep label + input at the top when a neighbour in the same row is taller
+     (e.g. it shows a long error message); otherwise the rows stretch apart. */
+  align-content: start;
 }
 
 label {
