@@ -15,6 +15,7 @@ from app.timeutils import today
 PASSWORD_MIN_LENGTH = 8
 # Upper bound so nobody can make the server hash megabytes of "password".
 PASSWORD_MAX_LENGTH = 128
+EMAIL_MAX_LENGTH = 254  # the users.email column
 MAX_ODOMETER_KM = 2_000_000
 MIN_PRODUCTION_YEAR = 1900
 EARLIEST_ENTRY_DATE = dt.date(1950, 1, 1)
@@ -90,6 +91,8 @@ class LoginForm(BaseModel):
         value = value.strip().lower()
         if not value:
             raise ValueError(REQUIRED_MESSAGE)
+        if len(value) > EMAIL_MAX_LENGTH:  # no account can have it; also fits the database
+            raise ValueError("Podaj poprawny adres e-mail.")
         return value
 
     @field_validator("password")

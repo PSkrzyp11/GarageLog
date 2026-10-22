@@ -1,10 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from httpx2 import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import User, UserSession
+from app.models import LoginFailure, User, UserSession
 from app.security import (
     CSRF_COOKIE,
     SESSION_COOKIE,
@@ -12,6 +13,11 @@ from app.security import (
     generate_session_token,
     hash_password,
     hash_session_token,
+)
+from app.services.auth import (
+    LOGIN_FAILURE_WINDOW,
+    MAX_FAILURES_PER_EMAIL,
+    MAX_FAILURES_PER_IP,
 )
 from tests.integration.helpers import (
     EMAIL,
@@ -118,6 +124,69 @@ def test_login_failure_does_not_reveal_whether_account_exists(client: TestClient
         assert "Nieprawidłowy e-mail lub hasło." in response.text
         assert SESSION_COOKIE not in response.cookies
     assert not is_logged_in(client)
+
+
+# --- Login throttling -------------------------------------------------------------------
+
+
+def failed_login(client: TestClient, email: str = EMAIL) -> Response:
+    return login(client, email=email, password="złe hasło")
+
+
+def test_too_many_failed_logins_block_even_the_right_password(client: TestClient) -> None:
+    register(client)
+    logout(client)
+    for _ in range(MAX_FAILURES_PER_EMAIL):
+        assert failed_login(client).status_code == 400
+
+    response = login(client)
+
+    assert response.status_code == 429
+    assert "Za dużo nieudanych prób logowania." in response.text
+    assert not is_logged_in(client)
+
+
+def test_the_block_does_not_reveal_whether_the_account_exists(client: TestClient) -> None:
+    for _ in range(MAX_FAILURES_PER_EMAIL):
+        failed_login(client, email="nikt@example.com")
+
+    assert failed_login(client, email="nikt@example.com").status_code == 429
+
+
+def test_successful_login_clears_earlier_failures(client: TestClient) -> None:
+    register(client)
+    logout(client)
+    for _ in range(MAX_FAILURES_PER_EMAIL - 1):
+        failed_login(client)
+    assert login(client).status_code == 303
+    logout(client)
+
+    for _ in range(MAX_FAILURES_PER_EMAIL - 1):
+        failed_login(client)
+
+    assert login(client).status_code == 303
+
+
+def test_one_address_trying_many_accounts_is_blocked(client: TestClient) -> None:
+    for number in range(MAX_FAILURES_PER_IP):
+        failed_login(client, email=f"konto{number}@example.com")
+
+    assert failed_login(client, email="kolejne@example.com").status_code == 429
+
+
+def test_failures_older_than_the_window_do_not_count(
+    client: TestClient, db_session: Session
+) -> None:
+    register(client)
+    logout(client)
+    old = datetime.now(UTC) - LOGIN_FAILURE_WINDOW - timedelta(minutes=1)
+    db_session.add_all(
+        LoginFailure(email=EMAIL, ip="testclient", created_at=old)
+        for _ in range(MAX_FAILURES_PER_EMAIL)
+    )
+    db_session.flush()
+
+    assert login(client).status_code == 303
 
 
 def test_login_never_reuses_a_session_token_set_before_login(client: TestClient) -> None:

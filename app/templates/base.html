@@ -34,7 +34,9 @@
           </form>
         {% else %}
           <a href="{{ url_for('login_page') }}">Zaloguj się</a>
-          <a href="{{ url_for('register_page') }}">Załóż konto</a>
+          {% if request.app.state.settings.registration_open %}
+            <a href="{{ url_for('register_page') }}">Załóż konto</a>
+          {% endif %}
         {% endif %}
       </nav>
     </div>

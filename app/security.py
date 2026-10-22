@@ -35,6 +35,9 @@ SECURITY_HEADERS = {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
 }
 
+# One year; without includeSubDomains, so other services on the same domain are not affected.
+HSTS_HEADER = "max-age=31536000"
+
 # The largest form (a 2 000-character note in Polish, URL-encoded) is about 20 KB.
 MAX_REQUEST_BODY_BYTES = 64 * 1024
 
@@ -198,6 +201,9 @@ async def security_middleware(
         set_cookie(response, request, CSRF_COOKIE, new_csrf_token)
 
     response.headers.update(SECURITY_HEADERS)
+    if request.app.state.settings.app_env == "production":
+        # Production runs only behind HTTPS: browsers must never fall back to plain HTTP.
+        response.headers["Strict-Transport-Security"] = HSTS_HEADER
     return response
 
 

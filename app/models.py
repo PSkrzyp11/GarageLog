@@ -125,6 +125,28 @@ class UserSession(Base):
     expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
+class LoginFailure(Base):
+    """A failed login attempt, kept briefly to slow down password guessing.
+
+    Stored for any e-mail typed in, registered or not, so the limit itself does not reveal
+    which accounts exist.
+    """
+
+    __tablename__ = "login_failures"
+    __table_args__ = (
+        # Recent failures for one e-mail / one address: WHERE email = ? AND created_at > ?
+        Index("ix_login_failures_email_created_at", "email", "created_at"),
+        Index("ix_login_failures_ip_created_at", "ip", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254))  # same limit as users.email
+    ip: Mapped[str] = mapped_column(String(45))  # long enough for IPv6
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Car(Base):
     __tablename__ = "cars"
     __table_args__ = (
