@@ -40,6 +40,9 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 - **Kopie zapasowe** — kopia bazy codziennie i jedno polecenie do przywrócenia.
 - **Interfejs** — po polsku, responsywny, działa bez JavaScriptu; HTMX usprawnia filtry
   i akcje w miejscu.
+- **Na telefonie** — można dodać do ekranu głównego jak aplikację; „+ Tankowanie” na
+  pulpicie otwiera formularz z dzisiejszą datą, paliwem z ostatniego tankowania i ostatnim
+  przebiegiem jako podpowiedzią.
 
 ## Stack
 
@@ -192,6 +195,12 @@ Content-Security-Policy nie dopuszcza żadnych zewnętrznych skryptów:
 |---|---|---|
 | `htmx.min.js` | npm `htmx.org@2.0.11` | `d6fdc75f…4000f717` |
 | `chart.umd.min.js` | npm `chart.js@4.5.1` | `48444a82…05c9f54a` |
+
+Manifest (`/manifest.webmanifest`) i ikony pozwalają dodać GarageLog do ekranu głównego
+telefonu (Android: „Zainstaluj aplikację”, iPhone: „Udostępnij → Do ekranu początkowego”);
+przeglądarka wymaga do tego HTTPS — patrz [deploy/](deploy/README.md). Celowo bez service
+workera: nie trzyma kopii stron z danymi na telefonie, a bez serwera aplikacja i tak nie
+działa.
 
 Pliki statyczne mają w adresie skrót zawartości (`app.css?v=…`), więc przeglądarka może je
 trzymać przez rok bez ryzyka nieaktualnego stylu.

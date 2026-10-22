@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}GarageLog{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ static_url(request, 'favicon.svg') }}">
+  {# "Add to home screen": the manifest for Android/Chrome, the touch icon for iPhone. #}
+  <link rel="manifest" href="{{ url_for('web_manifest') }}">
+  <link rel="apple-touch-icon" href="{{ static_url(request, 'icons/apple-touch-icon.png') }}">
+  <meta name="theme-color" content="#1f5fae">
+  <meta name="apple-mobile-web-app-title" content="GarageLog">
   <link rel="stylesheet" href="{{ static_url(request, 'css/app.css') }}">
   {#
     HTMX settings, allowed by our Content-Security-Policy (no inline scripts or styles):

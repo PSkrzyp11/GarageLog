@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- favicon.svg without the rounded corners: phones cut their own shape (circle, squircle)
+       out of "maskable" and Apple touch icons, so the tile must fill the whole square.
+       The car stays well inside the central "safe zone" that every shape keeps. -->
+  <rect width="32" height="32" fill="#1f5fae"/>
+  <path d="M8 17l2.2-5.2A2 2 0 0 1 12 10.5h8a2 2 0 0 1 1.8 1.3L24 17v5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-9v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z" fill="#fff"/>
+  <path d="M11 16.5l1.4-3.5h7.2l1.4 3.5z" fill="#1f5fae"/>
+  <circle cx="11.5" cy="19" r="1.3" fill="#1f5fae"/>
+  <circle cx="20.5" cy="19" r="1.3" fill="#1f5fae"/>
+</svg>

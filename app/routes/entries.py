@@ -212,20 +212,31 @@ def _fuel_form(
     values: Mapping[str, str],
     entry: FuelEntry | None = None,
     errors: Mapping[str, str] | None = None,
+    last_odometer_km: int | None = None,
 ) -> Response:
     fuels = entries_service.allowed_fuel_types(car, entry)
-    extra = {"fuel_options": [(fuel.value, fuel.label) for fuel in fuels]}
+    extra = {
+        "fuel_options": [(fuel.value, fuel.label) for fuel in fuels],
+        # A new refuel: shown as a hint, so the mileage is easy to check at the pump.
+        "last_odometer_km": last_odometer_km,
+    }
     return _form_page(request, "entries/fuel_form.html", user, car, values, entry, errors, extra)
 
 
 @router.get("/fuel/new")
-def new_fuel_entry_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+def new_fuel_entry_page(
+    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession
+) -> Response:
+    # Made to be filled in quickly at the pump on a phone: only mileage, litres and amount
+    # usually need typing.
     defaults = {
         "date": today().isoformat(),
-        "fuel_type": car.fuel_types[0].value,
+        "fuel_type": entries_service.usual_fuel_type(db, car).value,
         "is_full_tank": "on",  # most refuels are to a full tank
     }
-    return _fuel_form(request, user, car, defaults)
+    return _fuel_form(
+        request, user, car, defaults, last_odometer_km=cars_service.current_odometer_km(db, car)
+    )
 
 
 @router.post("/fuel/new")
@@ -236,7 +247,8 @@ def create_fuel_entry(
         form = parse_form(FuelEntryForm, data)
         entries_service.create_fuel_entry(db, car, form)
     except (ValidationError, EntryValidationError) as exc:
-        return _fuel_form(request, user, car, data, errors=_errors(exc))
+        last_km = cars_service.current_odometer_km(db, car)
+        return _fuel_form(request, user, car, data, errors=_errors(exc), last_odometer_km=last_km)
 
     db.commit()
     return _back_to_car(request, car)

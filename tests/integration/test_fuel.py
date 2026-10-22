@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.formatting import format_km
 from app.models import FuelEntry, FuelType
 from app.timeutils import today
 from tests.integration.helpers import (
@@ -174,3 +175,40 @@ def test_deleting_car_removes_refuels(client: TestClient, db_session: Session, c
     post_form(client, url, {}, url)
 
     assert count(db_session, FuelEntry) == 0
+
+
+# --- Quick refuel (phone) ---------------------------------------------------------------
+
+
+def test_new_refuel_form_shows_the_last_mileage_and_starts_at_it(
+    client: TestClient, car_id: int
+) -> None:
+    page = client.get(f"/cars/{car_id}/fuel/new").text
+
+    assert f"Ostatni zapisany: {format_km(120_000)}." in page
+    assert 'name="odometer_km"' in page and 'autofocus="autofocus"' in page
+
+
+def test_edit_form_does_not_grab_the_focus(client: TestClient, car_id: int) -> None:
+    entry_id = add_fuel_entry(client, car_id)
+
+    page = client.get(f"/cars/{car_id}/fuel/{entry_id}/edit").text
+
+    assert "autofocus" not in page
+
+
+def test_new_refuel_preselects_the_fuel_of_the_last_refuel(client: TestClient) -> None:
+    register(client)
+    car_id = add_car(client, initial_odometer_km="120000", has_lpg="on")
+    url = f"/cars/{car_id}/fuel/new"
+    assert '<option value="petrol" selected>' in client.get(url).text  # no refuels yet
+
+    add_fuel_entry(client, car_id, fuel_type="lpg", date=today().isoformat(), odometer_km="120500")
+
+    assert '<option value="lpg" selected>' in client.get(url).text
+
+
+def test_dashboard_links_each_car_to_a_new_refuel(client: TestClient, car_id: int) -> None:
+    page = client.get("/").text
+
+    assert f'href="http://testserver/cars/{car_id}/fuel/new">+ Tankowanie</a>' in page

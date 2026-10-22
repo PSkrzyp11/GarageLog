@@ -751,6 +751,10 @@ input[type="checkbox"]:focus-visible {
   font-weight: 600;
 }
 
+.car-card .car-actions {
+  margin-top: 0.75rem;
+}
+
 .empty-state {
   text-align: center;
 }
