@@ -28,6 +28,12 @@
   {% if summary.start %}Od {{ summary.start | pl_date }} do {{ summary.end | pl_date }}.{% else %}Wszystkie wpisy do {{ summary.end | pl_date }}.{% endif %}
 </p>
 
+<p class="export-links">
+  Pobierz całą historię do Excela:
+  <a href="{{ url_for('export_service_entries', car_id=car.id) }}">serwis i wydatki (CSV)</a> ·
+  <a href="{{ url_for('export_fuel_entries', car_id=car.id) }}">tankowania (CSV)</a>
+</p>
+
 {% if summary.expense_count == 0 %}
   <section class="card empty-state">
     <p>Brak wydatków w tym okresie.</p>

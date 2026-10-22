@@ -2,7 +2,7 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 8 (przypomnienia według daty, przebiegu lub obu).
+> Projekt w budowie — obecnie etap 9 (eksport CSV pod polskiego Excela, z ochroną przed CSV injection).
 
 ## Stack
 
