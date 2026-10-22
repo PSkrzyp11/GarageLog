@@ -43,6 +43,14 @@ def form_errors(error: ValidationError) -> dict[str, str]:
     return errors
 
 
+def check_new_password(value: str) -> str:
+    if len(value) < PASSWORD_MIN_LENGTH:
+        raise ValueError(f"Hasło musi mieć co najmniej {PASSWORD_MIN_LENGTH} znaków.")
+    if len(value) > PASSWORD_MAX_LENGTH:
+        raise ValueError(f"Hasło może mieć najwyżej {PASSWORD_MAX_LENGTH} znaków.")
+    return value
+
+
 class RegisterForm(BaseModel):
     email: str
     password: str
@@ -61,11 +69,7 @@ class RegisterForm(BaseModel):
     @field_validator("password")
     @classmethod
     def check_password_length(cls, value: str) -> str:
-        if len(value) < PASSWORD_MIN_LENGTH:
-            raise ValueError(f"Hasło musi mieć co najmniej {PASSWORD_MIN_LENGTH} znaków.")
-        if len(value) > PASSWORD_MAX_LENGTH:
-            raise ValueError(f"Hasło może mieć najwyżej {PASSWORD_MAX_LENGTH} znaków.")
-        return value
+        return check_new_password(value)
 
     @field_validator("password_confirm")
     @classmethod
@@ -93,6 +97,31 @@ class LoginForm(BaseModel):
     def check_not_empty(cls, value: str) -> str:
         if not value:
             raise ValueError(REQUIRED_MESSAGE)
+        return value
+
+
+class PasswordChangeForm(BaseModel):
+    current_password: str
+    new_password: str
+    new_password_confirm: str
+
+    @field_validator("current_password")
+    @classmethod
+    def check_not_empty(cls, value: str) -> str:
+        if not value:
+            raise ValueError(REQUIRED_MESSAGE)
+        return value
+
+    @field_validator("new_password")
+    @classmethod
+    def check_password_length(cls, value: str) -> str:
+        return check_new_password(value)
+
+    @field_validator("new_password_confirm")
+    @classmethod
+    def check_passwords_match(cls, value: str, info: ValidationInfo) -> str:
+        if "new_password" in info.data and value != info.data["new_password"]:
+            raise ValueError("Hasła nie są takie same.")
         return value
 
 
@@ -377,6 +406,7 @@ class FuelEntryForm(BaseModel):
 # --- Reminders --------------------------------------------------------------------------
 
 LATEST_DUE_DATE = dt.date(2100, 12, 31)
+MAX_REPEAT_MONTHS = 120  # the same limit is a CHECK constraint in the database
 
 
 def parse_optional_due_date(value: object) -> object:
@@ -399,6 +429,8 @@ class ReminderForm(BaseModel):
     due_date: dt.date | None
     due_odometer_km: int | None
     notes: str | None
+    repeat_months: int | None
+    repeat_km: int | None
 
     @field_validator("title")
     @classmethod
@@ -421,6 +453,22 @@ class ReminderForm(BaseModel):
     @classmethod
     def check_notes(cls, value: str) -> str | None:
         return optional_text(value, 2000)
+
+    @field_validator("repeat_months", mode="before")
+    @classmethod
+    def check_repeat_months(cls, value: object) -> object:
+        months = parse_optional_int(value)
+        if months is not None and not 1 <= months <= MAX_REPEAT_MONTHS:
+            raise ValueError(f"Podaj liczbę miesięcy od 1 do {MAX_REPEAT_MONTHS}.")
+        return months
+
+    @field_validator("repeat_km", mode="before")
+    @classmethod
+    def check_repeat_km(cls, value: object) -> object:
+        km = check_odometer_range(parse_optional_int(value))
+        if km == 0:
+            raise ValueError("Podaj liczbę kilometrów większą od 0.")
+        return km
 
     @model_validator(mode="after")
     def require_due_condition(self) -> "ReminderForm":

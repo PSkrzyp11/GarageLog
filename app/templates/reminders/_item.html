@@ -1,5 +1,13 @@
-{# One reminder card. `view` is a ReminderView; `return_to` names the page to come back to. #}
-{% macro reminder_item(view, return_to="reminders", show_car=False) %}
+{# "do 01.06.2027 lub do 135 000 km" #}
+{% macro due_text(reminder) -%}
+  {%- if reminder.due_date %}do {{ reminder.due_date | pl_date }}{% endif -%}
+  {%- if reminder.due_date and reminder.due_odometer_km is not none %} lub {% endif -%}
+  {%- if reminder.due_odometer_km is not none %}do {{ reminder.due_odometer_km | km }}{% endif -%}
+{%- endmacro %}
+
+{# One reminder card. `view` is a ReminderView; `return_to` names the page to come back to;
+   `next_reminder` is the occurrence just created by completing a recurring reminder. #}
+{% macro reminder_item(view, return_to="reminders", show_car=False, next_reminder=None) %}
 {% set reminder = view.reminder %}
 <li class="card reminder reminder-{{ view.state.status }}">
   <div class="reminder-head">
@@ -10,12 +18,14 @@
     <a href="{{ url_for('edit_reminder_page', car_id=view.car.id, reminder_id=reminder.id) }}">{{ reminder.title }}</a>
   </h3>
   <p class="reminder-due">
-    {% if reminder.due_date %}do {{ reminder.due_date | pl_date }}{% endif %}
-    {% if reminder.due_date and reminder.due_odometer_km is not none %} lub {% endif %}
-    {% if reminder.due_odometer_km is not none %}do {{ reminder.due_odometer_km | km }}{% endif %}
+    {{ due_text(reminder) }}
     {% if view.due_parts %}<span class="muted">({{ view.due_parts | join(", ") }})</span>{% endif %}
   </p>
+  {% if view.repeat_text %}<p class="muted reminder-repeat">Powtarza się {{ view.repeat_text }}</p>{% endif %}
   {% if reminder.notes %}<p class="muted timeline-notes">{{ reminder.notes }}</p>{% endif %}
+  {% if next_reminder %}
+    <p class="reminder-next" role="status">Następne przypomnienie: {{ due_text(next_reminder) }}</p>
+  {% endif %}
   {% set action_url = url_for('reopen_reminder' if reminder.completed_at else 'complete_reminder', car_id=view.car.id, reminder_id=reminder.id) %}
   {# Without HTMX the page reloads; with HTMX only this card is replaced. #}
   <form method="post" class="inline-form" action="{{ action_url }}"

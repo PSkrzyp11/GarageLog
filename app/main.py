@@ -9,8 +9,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.deps import LoginRequired
-from app.routes import auth, cars, entries, export, pages, reminders
-from app.security import security_middleware, verify_csrf
+from app.routes import account, auth, cars, entries, export, pages, reminders
+from app.security import RequestBodyLimitMiddleware, security_middleware, verify_csrf
 from app.static_files import STATIC_DIR, VersionedStaticFiles
 from app.templating import render
 
@@ -65,6 +65,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.session_factory = create_session_factory(engine)
 
+    # Added first, so it sits *inside* security_middleware (the last one added runs first).
+    # Its 413 must be raised next to the route, where the error handlers below catch it.
+    app.add_middleware(RequestBodyLimitMiddleware)
     app.middleware("http")(security_middleware)
     app.add_exception_handler(LoginRequired, redirect_to_login)
     app.add_exception_handler(StarletteHTTPException, render_http_error)
@@ -73,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", VersionedStaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(pages.router)
     app.include_router(auth.router)
+    app.include_router(account.router)
     app.include_router(cars.router)
     app.include_router(entries.router)
     app.include_router(reminders.router)

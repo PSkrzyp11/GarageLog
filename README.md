@@ -21,7 +21,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 
 ## Co potrafi
 
-- **Konta** — rejestracja i logowanie; każdy widzi wyłącznie swoje auta i dane.
+- **Konta** — rejestracja i logowanie, zmiana hasła, wylogowanie innych urządzeń; każdy
+  widzi wyłącznie swoje auta i dane.
 - **Auta** — kilka aut na konto, paliwo główne + opcjonalna instalacja LPG.
 - **Historia** — tankowania (pełne / częściowe / po pominiętym tankowaniu), serwis i inne
   wydatki, odczyty licznika; wspólna oś czasu z filtrem rodzaju i roku.
@@ -33,9 +34,10 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   odcinków, z których wynika.
 - **Wykresy** — wydatki miesięczne (paliwo i pozostałe) i cena paliwa w czasie, z tabelą
   danych obok każdego wykresu.
-- **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), z sekcją
-  „Do zrobienia” na pulpicie.
+- **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), także
+  cykliczne (np. olej co rok lub 15 000 km), z sekcją „Do zrobienia” na pulpicie.
 - **Eksport CSV** — pod polskiego Excela, odporny na CSV injection.
+- **Kopie zapasowe** — kopia bazy codziennie i jedno polecenie do przywrócenia.
 - **Interfejs** — po polsku, responsywny, działa bez JavaScriptu; HTMX usprawnia filtry
   i akcje w miejscu.
 
@@ -66,6 +68,24 @@ fikcyjną historią, a hasło wypisuje raz w konsoli (nie jest nigdzie zapisywan
 hasło: `docker compose exec -e DEMO_PASSWORD=... app python -m scripts.seed_demo --reset`.
 
 Aplikacja: <http://127.0.0.1:8000>. Kontener sam wykonuje migracje przy starcie.
+
+## Kopie zapasowe
+
+`docker compose up` uruchamia też kontener `backup`: przy starcie i potem co 24 godziny
+zapisuje kopię bazy (`pg_dump`) do folderu `backups/`, a kopie starsze niż 30 dni usuwa —
+dopiero po udanej nowej kopii. Folder, odstęp i czas przechowywania ustawia się w `.env`
+(`BACKUP_DIR`, `BACKUP_INTERVAL_HOURS`, `BACKUP_KEEP_DAYS`). Najlepiej wskazać folder
+synchronizowany z chmurą: kopia na tym samym dysku nie chroni przed jego awarią.
+
+```bash
+docker compose run --rm backup once        # kopia teraz
+
+# Przywrócenie: cała baza zostaje zastąpiona kopią (w jednej transakcji — przy błędzie
+# nic się nie zmienia). Aplikacja na ten czas jest zatrzymana.
+docker compose stop app
+docker compose run --rm backup restore garagelog-2026-10-22_2100.dump
+docker compose start app
+```
 
 ## Development
 
@@ -135,6 +155,7 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
 ## Bezpieczeństwo
 
 - Hasła: Argon2id; nieudane logowanie nie zdradza, czy konto istnieje (także czasem odpowiedzi).
+  Zmiana hasła wymaga obecnego hasła i wylogowuje pozostałe urządzenia.
 - Sesje w bazie: w ciasteczku (`HttpOnly`, `SameSite=Lax`, `Secure` w produkcji) losowy token,
   w bazie tylko jego skrót SHA-256; nowy token przy każdym logowaniu
   ([ADR 0002](docs/decisions/0002-server-side-sessions.md)).
@@ -142,8 +163,12 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
 - Kontrola dostępu przetestowana dla każdej trasy z `{car_id}`; test kontrolny nie pozwala dodać
   trasy bez tego testu.
 - Nagłówki: Content-Security-Policy (`default-src 'self'`, bez skryptów inline),
-  `X-Frame-Options`, `nosniff`, `Referrer-Policy`.
+  `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- Limit 64 KB na treść żądania: formularz jest czytany (sprawdzenie CSRF), zanim wiadomo,
+  kto go wysłał, a ani uvicorn, ani Starlette nie ograniczają jego rozmiaru.
 - Eksport CSV: tekst zaczynający się od `=`, `+`, `-`, `@` nie stanie się formułą w Excelu.
+- Zależności: Dependabot proponuje aktualizacje raz w miesiącu; akcje GitHub w CI są
+  przypięte do SHA commitów, nie do tagów, które można przesunąć.
 - Sekrety tylko w zmiennych środowiskowych (`.env` poza repozytorium); w produkcji aplikacja
   nie wystartuje z domyślnym `SECRET_KEY`.
 
@@ -173,7 +198,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 - jedna waluta (PLN) i jednostki metryczne;
 - brak aut elektrycznych i ładowania;
 - wymiana licznika (cofnięcie przebiegu) nie jest obsługiwana;
-- przypomnienia jednorazowe (bez „co 15 000 km”) i tylko w aplikacji — bez e-maili;
+- przypomnienia tylko w aplikacji — bez e-maili;
 - brak resetu hasła, weryfikacji e-maila i usuwania konta z poziomu aplikacji;
 - formularz rejestracji zdradza, że e-mail jest już zajęty (bez potwierdzania e-maila nie da
   się tego uniknąć — formularz logowania niczego nie zdradza);
@@ -185,8 +210,8 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Przypomnienia cykliczne, archiwizacja sprzedanego auta, wykres spalania w czasie,
-import CSV, reset hasła, publiczne demo z HTTPS i limitem logowań.
+Archiwizacja sprzedanego auta, wykres spalania w czasie, import CSV, reset hasła, dostęp
+z telefonu (np. przez Tailscale), publiczne demo z HTTPS i limitem logowań.
 
 ## Licencja
 

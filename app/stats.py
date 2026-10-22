@@ -15,6 +15,7 @@ Definitions used everywhere in the app:
 When the data can't support a number, the result says why instead of showing 0.
 """
 
+import calendar
 import datetime as dt
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
@@ -22,7 +23,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
 
-from app.formatting import format_km
+from app.formatting import format_km, plural
 from app.odometer import OdometerPoint
 
 FUEL = "fuel"  # category key of refuels; service entries use their ServiceCategory value
@@ -438,6 +439,51 @@ def describe_due(state: ReminderState) -> list[str]:
         else:
             parts.append(f"{format_km(-state.km_left)} po terminie")
     return parts
+
+
+# Recurring reminders: the next one is counted from when the work was actually done, not from
+# the old due date — an oil change done 2 000 km late still lasts the full 15 000 km.
+
+
+def add_months(day: dt.date, months: int) -> dt.date:
+    """31.01 + 1 month → 28.02 (29.02 in a leap year): the day is cut to the month's length."""
+    month_index = day.month - 1 + months
+    year, month = day.year + month_index // 12, month_index % 12 + 1
+    return dt.date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
+
+
+def next_due(
+    repeat_months: int | None,
+    repeat_km: int | None,
+    done_on: dt.date,
+    done_at_km: int | None,
+) -> tuple[dt.date | None, int | None] | None:
+    """(due date, due mileage) of the next occurrence, or None if neither can be computed
+    (a repeat by mileage only, for a car without any recorded mileage)."""
+    due_date = add_months(done_on, repeat_months) if repeat_months else None
+    due_km = done_at_km + repeat_km if repeat_km and done_at_km is not None else None
+    if due_date is None and due_km is None:
+        return None
+    return due_date, due_km
+
+
+def describe_repeat(repeat_months: int | None, repeat_km: int | None) -> str:
+    """'co rok lub 15 000 km', 'co 6 miesięcy', 'co 2 lata' — or '' when not recurring."""
+    parts = []
+    if repeat_months == 12:
+        parts.append("co rok")
+    elif repeat_months == 1:
+        parts.append("co miesiąc")
+    elif repeat_months and repeat_months % 12 == 0:
+        years = repeat_months // 12
+        parts.append(f"co {years} {plural(years, 'rok', 'lata', 'lat')}")
+    elif repeat_months:
+        parts.append(
+            f"co {repeat_months} {plural(repeat_months, 'miesiąc', 'miesiące', 'miesięcy')}"
+        )
+    if repeat_km:
+        parts.append(format_km(repeat_km) if parts else f"co {format_km(repeat_km)}")
+    return " lub ".join(parts)
 
 
 # --- Chart data -------------------------------------------------------------------------

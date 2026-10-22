@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% block title %}Konto — GarageLog{% endblock %}
+
+{% block content %}
+<h1>Konto</h1>
+<p class="muted">Zalogowano jako {{ user.email }}</p>
+
+{% if done_message %}
+<div class="alert alert-success" role="status">{{ done_message }}</div>
+{% endif %}
+
+<div class="account-sections">
+  <section class="card">
+    <h2>Zmiana hasła</h2>
+    <form method="post" action="{{ url_for('change_password') }}" class="form">
+      {{ csrf_input(request) }}
+      {{ forms.field("current_password", "Obecne hasło", type="password",
+                     error=errors.get("current_password"), autocomplete="current-password") }}
+      {{ forms.field("new_password", "Nowe hasło", type="password",
+                     error=errors.get("new_password"), autocomplete="new-password",
+                     hint="Co najmniej 8 znaków.", attrs={"minlength": 8, "maxlength": 128}) }}
+      {{ forms.field("new_password_confirm", "Powtórz nowe hasło", type="password",
+                     error=errors.get("new_password_confirm"), autocomplete="new-password") }}
+      <button type="submit" class="button">Zmień hasło</button>
+    </form>
+    <p class="muted">Po zmianie hasła wszystkie inne urządzenia zostaną wylogowane.</p>
+  </section>
+
+  <section class="card">
+    <h2>Zalogowane urządzenia</h2>
+    {% if other_sessions %}
+      <p>Aktywne logowania na innych urządzeniach lub w innych przeglądarkach:
+        <strong>{{ other_sessions }}</strong>. Jeśli któreś nie jest Twoje albo już z niego
+        nie korzystasz, wyloguj je.</p>
+      <form method="post" action="{{ url_for('logout_other_sessions') }}">
+        {{ csrf_input(request) }}
+        <button type="submit" class="button button-secondary">Wyloguj inne urządzenia</button>
+      </form>
+    {% else %}
+      <p class="muted">Konto jest otwarte tylko w tej przeglądarce.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

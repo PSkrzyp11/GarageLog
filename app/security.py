@@ -12,6 +12,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import HTTPException, Request, Response, status
 from markupsafe import Markup
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 SESSION_COOKIE = "session"
 CSRF_COOKIE = "csrftoken"
@@ -29,7 +30,13 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "same-origin",
     "Cross-Origin-Opener-Policy": "same-origin",
+    # The app needs none of these browser features; a script injected despite the CSP
+    # could not ask for them either.
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
 }
+
+# The largest form (a 2 000-character note in Polish, URL-encoded) is about 20 KB.
+MAX_REQUEST_BODY_BYTES = 64 * 1024
 
 # --- Passwords --------------------------------------------------------------------------
 
@@ -192,3 +199,36 @@ async def security_middleware(
 
     response.headers.update(SECURITY_HEADERS)
     return response
+
+
+class RequestBodyLimitMiddleware:
+    """Stops reading a request body after MAX_REQUEST_BODY_BYTES and answers 413.
+
+    Every POST form is parsed before the user is known (the CSRF check reads it), and neither
+    uvicorn nor Starlette limits the size of a URL-encoded body. Counting the bytes actually
+    received, instead of trusting Content-Length, also covers chunked requests.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        received = 0
+
+        async def limited_receive() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > MAX_REQUEST_BODY_BYTES:
+                    # Raised while a route reads the form, so the usual error page is shown.
+                    raise HTTPException(
+                        status.HTTP_413_CONTENT_TOO_LARGE, "Przesłane dane są za duże."
+                    )
+            return message
+
+        await self.app(scope, limited_receive, send)

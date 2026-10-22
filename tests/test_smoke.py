@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
-from app.security import CSRF_COOKIE
+from app.security import CSRF_COOKIE, MAX_REQUEST_BODY_BYTES
 
 
 def test_health_returns_ok(client: TestClient) -> None:
@@ -57,6 +57,28 @@ def test_security_headers_are_set(client: TestClient) -> None:
     assert headers["x-content-type-options"] == "nosniff"
     assert headers["x-frame-options"] == "DENY"
     assert headers["referrer-policy"] == "same-origin"
+    assert "camera=()" in headers["permissions-policy"]
+
+
+FORM_HEADERS = {"content-type": "application/x-www-form-urlencoded"}
+
+
+def test_too_large_form_is_rejected(client: TestClient) -> None:
+    body = "email=" + "a" * MAX_REQUEST_BODY_BYTES
+
+    response = client.post("/login", content=body, headers=FORM_HEADERS)
+
+    assert response.status_code == 413
+    assert "Przesłane dane są za duże." in response.text
+
+
+def test_too_large_form_is_rejected_without_content_length(client: TestClient) -> None:
+    # A generator body is sent in chunks, without a Content-Length header to check.
+    chunks = (b"a" * 1024 for _ in range(MAX_REQUEST_BODY_BYTES // 1024 + 1))
+
+    response = client.post("/login", content=chunks, headers=FORM_HEADERS)
+
+    assert response.status_code == 413
 
 
 def test_csrf_cookie_is_httponly_and_samesite_lax(client: TestClient) -> None:

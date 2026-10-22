@@ -27,6 +27,7 @@
       <nav class="site-nav" aria-label="Konto">
         {% if user %}
           <span class="muted nav-email">{{ user.email }}</span>
+          <a href="{{ url_for('account_page') }}">Konto</a>
           <form method="post" action="{{ url_for('logout') }}" class="inline-form">
             {{ csrf_input(request) }}
             <button type="submit" class="button-link">Wyloguj</button>

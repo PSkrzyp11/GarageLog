@@ -7,13 +7,20 @@ checked for ownership by the dependencies in app/deps.py.
 import datetime as dt
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import Car, Reminder, User
 from app.schemas import ReminderForm
 from app.services import cars as cars_service
-from app.stats import ReminderState, ReminderStatus, describe_due, reminder_state
+from app.stats import (
+    ReminderState,
+    ReminderStatus,
+    describe_due,
+    describe_repeat,
+    next_due,
+    reminder_state,
+)
 from app.timeutils import today
 
 # Shown on the dashboard: what needs attention now.
@@ -30,6 +37,10 @@ class ReminderView:
     @property
     def due_parts(self) -> list[str]:
         return describe_due(self.state)
+
+    @property
+    def repeat_text(self) -> str:
+        return describe_repeat(self.reminder.repeat_months, self.reminder.repeat_km)
 
 
 def _view(reminder: Reminder, car: Car, current_km: int | None, day: dt.date) -> ReminderView:
@@ -102,8 +113,43 @@ def update_reminder(db: Session, reminder: Reminder, form: ReminderForm) -> None
     db.flush()
 
 
-def set_completed(db: Session, reminder: Reminder, completed: bool) -> None:
-    reminder.completed_at = dt.datetime.now(dt.UTC) if completed else None
+def complete_reminder(db: Session, reminder: Reminder, car: Car) -> Reminder | None:
+    """Mark as done. A recurring reminder also gets its next occurrence, which is returned."""
+    if reminder.completed_at is not None:
+        return None  # already done (e.g. a double click): no second next occurrence
+    reminder.completed_at = dt.datetime.now(dt.UTC)
+    due = next_due(
+        reminder.repeat_months,
+        reminder.repeat_km,
+        done_on=today(),
+        done_at_km=cars_service.current_odometer_km(db, car),
+    )
+    next_reminder = None
+    if due is not None:
+        next_reminder = Reminder(
+            car_id=car.id,
+            title=reminder.title,
+            notes=reminder.notes,
+            due_date=due[0],
+            due_odometer_km=due[1],
+            repeat_months=reminder.repeat_months,
+            repeat_km=reminder.repeat_km,
+            created_from_id=reminder.id,
+        )
+        db.add(next_reminder)
+    db.flush()
+    return next_reminder
+
+
+def reopen_reminder(db: Session, reminder: Reminder) -> None:
+    """Undo "done" (e.g. a misclick). The next occurrence created by completing it is removed
+    too, unless that one has been completed in the meantime."""
+    reminder.completed_at = None
+    db.execute(
+        delete(Reminder).where(
+            Reminder.created_from_id == reminder.id, Reminder.completed_at.is_(None)
+        )
+    )
     db.flush()
 
 

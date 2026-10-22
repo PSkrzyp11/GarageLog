@@ -85,7 +85,8 @@ def car_detail(
     timeline = entries_service.car_timeline(db, car)
     years = sorted({item.date.year for item in timeline}, reverse=True)
     selected_kind = next((option for option in EntryKind if option.value == kind), None)
-    selected_year = int(year) if year.isdigit() and int(year) in years else None
+    # Compared as text, never int(year): "²".isdigit() is True, yet int("²") raises (→ 500).
+    selected_year = next((option for option in years if str(option) == year), None)
 
     return render(
         request,

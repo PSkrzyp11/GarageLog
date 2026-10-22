@@ -86,6 +86,8 @@ def edit_reminder_page(
             "" if reminder.due_odometer_km is None else str(reminder.due_odometer_km)
         ),
         "notes": reminder.notes or "",
+        "repeat_months": "" if reminder.repeat_months is None else str(reminder.repeat_months),
+        "repeat_km": "" if reminder.repeat_km is None else str(reminder.repeat_km),
     }
     return _form(request, user, car, values, reminder=reminder)
 
@@ -110,9 +112,15 @@ def update_reminder(
 
 
 def _after_status_change(
-    request: Request, car: Car, reminder: Reminder, db: DbSession, data: Mapping[str, str]
+    request: Request,
+    car: Car,
+    reminder: Reminder,
+    db: DbSession,
+    data: Mapping[str, str],
+    next_reminder: Reminder | None = None,
 ) -> Response:
-    """HTMX: just the updated card (it stays visible, so "Przywróć" can undo a misclick).
+    """HTMX: just the updated card (it stays visible, so "Przywróć" can undo a misclick),
+    mentioning the next occurrence of a recurring reminder.
     Without JavaScript: back to the page the form came from."""
     if not is_htmx(request):
         return _back(request, car, data)
@@ -120,7 +128,11 @@ def _after_status_change(
     return render(
         request,
         "reminders/_item_fragment.html",
-        {"view": reminders_service.reminder_view(db, reminder, car), "return_to": return_to},
+        {
+            "view": reminders_service.reminder_view(db, reminder, car),
+            "next_reminder": next_reminder,
+            "return_to": return_to,
+        },
     )
 
 
@@ -128,16 +140,16 @@ def _after_status_change(
 def complete_reminder(
     request: Request, car: OwnedCar, reminder: OwnedReminder, db: DbSession, data: FormData
 ) -> Response:
-    reminders_service.set_completed(db, reminder, completed=True)
+    next_reminder = reminders_service.complete_reminder(db, reminder, car)
     db.commit()
-    return _after_status_change(request, car, reminder, db, data)
+    return _after_status_change(request, car, reminder, db, data, next_reminder)
 
 
 @router.post("/{reminder_id}/reopen")
 def reopen_reminder(
     request: Request, car: OwnedCar, reminder: OwnedReminder, db: DbSession, data: FormData
 ) -> Response:
-    reminders_service.set_completed(db, reminder, completed=False)
+    reminders_service.reopen_reminder(db, reminder)
     db.commit()
     return _after_status_change(request, car, reminder, db, data)
 

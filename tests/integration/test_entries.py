@@ -233,6 +233,19 @@ def test_unknown_filter_values_are_ignored(client: TestClient, car_id: int) -> N
     assert "timeline-odometer" in page
 
 
+# "²" and Arabic-Indic digits pass str.isdigit() but are not years; 5 000 digits is more
+# than int() accepts. All of them used to end in a 500 error.
+@pytest.mark.parametrize("year", ["²", "٢٠٢٤", "9" * 5000])
+def test_odd_year_values_are_ignored(client: TestClient, car_id: int, year: str) -> None:
+    add_service_entry(client, car_id, title="Serwis 2024", date="2024-04-04")
+
+    response = client.get(f"/cars/{car_id}", params={"year": year})
+
+    assert response.status_code == 200
+    assert "Serwis 2024" in response.text
+    assert "timeline-odometer" in response.text
+
+
 # --- Deleting the car -------------------------------------------------------------------
 
 

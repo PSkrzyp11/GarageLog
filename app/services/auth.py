@@ -5,7 +5,7 @@ Functions here only flush; the route decides when the whole operation is committ
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,10 @@ SESSION_LIFETIME = timedelta(days=14)
 
 
 class EmailAlreadyRegisteredError(Exception):
+    pass
+
+
+class WrongPasswordError(Exception):
     pass
 
 
@@ -87,3 +91,38 @@ def get_user_by_session_token(db: Session, token: str) -> User | None:
 
 def delete_session(db: Session, token: str) -> None:
     db.execute(delete(UserSession).where(UserSession.token_hash == hash_session_token(token)))
+
+
+def count_other_sessions(db: Session, user: User, current_token: str) -> int:
+    """Active logins of this user on other devices or browsers."""
+    return db.scalar(
+        select(func.count())
+        .select_from(UserSession)
+        .where(
+            UserSession.user_id == user.id,
+            UserSession.token_hash != hash_session_token(current_token),
+            UserSession.expires_at > datetime.now(UTC),
+        )
+    )
+
+
+def delete_other_sessions(db: Session, user: User, current_token: str) -> None:
+    """Log the user out everywhere except in the current browser."""
+    db.execute(
+        delete(UserSession).where(
+            UserSession.user_id == user.id,
+            UserSession.token_hash != hash_session_token(current_token),
+        )
+    )
+
+
+def change_password(
+    db: Session, user: User, current_password: str, new_password: str, current_token: str
+) -> None:
+    """The current password is required even though the user is logged in, so someone at an
+    unlocked computer cannot take the account over. Other sessions end, because whoever knew
+    the old password may be logged in somewhere."""
+    if not verify_password(user.password_hash, current_password):
+        raise WrongPasswordError
+    user.password_hash = hash_password(new_password)
+    delete_other_sessions(db, user, current_token)

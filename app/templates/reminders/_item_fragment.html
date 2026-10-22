@@ -1,3 +1,4 @@
 {# One reminder card on its own: the HTMX response after "done" / "restore". #}
 {% from "reminders/_item.html" import reminder_item with context %}
-{{ reminder_item(view, return_to=return_to, show_car=return_to == "dashboard") }}
+{{ reminder_item(view, return_to=return_to, show_car=return_to == "dashboard",
+                 next_reminder=next_reminder) }}

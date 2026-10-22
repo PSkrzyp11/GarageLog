@@ -3,8 +3,16 @@ from datetime import date, timedelta
 import pytest
 from pydantic import ValidationError
 
+from app.formatting import format_km
 from app.schemas import ReminderForm, form_errors, parse_form
-from app.stats import ReminderStatus, describe_due, reminder_state
+from app.stats import (
+    ReminderStatus,
+    add_months,
+    describe_due,
+    describe_repeat,
+    next_due,
+    reminder_state,
+)
 
 TODAY = date(2026, 10, 22)
 
@@ -152,3 +160,74 @@ def test_form_requires_a_title() -> None:
         parse_form(ReminderForm, FORM | {"title": " ", "due_date": "2027-01-01"})
 
     assert list(form_errors(exc_info.value)) == ["title"]
+
+
+# --- Recurring reminders ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("day", "months", "expected"),
+    [
+        (date(2026, 10, 22), 12, date(2027, 10, 22)),
+        (date(2026, 10, 22), 3, date(2027, 1, 22)),  # across the year boundary
+        (date(2026, 1, 31), 1, date(2026, 2, 28)),  # no 31 February
+        (date(2027, 12, 31), 2, date(2028, 2, 29)),  # leap year
+        (date(2026, 10, 22), 120, date(2036, 10, 22)),
+    ],
+)
+def test_add_months(day: date, months: int, expected: date) -> None:
+    assert add_months(day, months) == expected
+
+
+def test_next_due_counts_from_when_the_work_was_done() -> None:
+    assert next_due(12, 15_000, TODAY, 131_200) == (date(2027, 10, 22), 146_200)
+    assert next_due(24, None, TODAY, 131_200) == (date(2028, 10, 22), None)
+    assert next_due(None, 15_000, TODAY, 131_200) == (None, 146_200)
+
+
+def test_next_due_by_mileage_needs_a_known_mileage() -> None:
+    assert next_due(None, 15_000, TODAY, None) is None
+    assert next_due(12, 15_000, TODAY, None) == (date(2027, 10, 22), None)
+
+
+@pytest.mark.parametrize(
+    ("months", "km", "expected"),
+    [
+        (None, None, ""),
+        (1, None, "co miesiąc"),
+        (6, None, "co 6 miesięcy"),
+        (3, None, "co 3 miesiące"),
+        (12, None, "co rok"),
+        (24, None, "co 2 lata"),
+        (60, None, "co 5 lat"),
+        (None, 800, f"co {format_km(800)}"),
+        (12, 15_000, f"co rok lub {format_km(15_000)}"),
+    ],
+)
+def test_describe_repeat(months: int | None, km: int | None, expected: str) -> None:
+    assert describe_repeat(months, km) == expected
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("repeat_months", "0", "Podaj liczbę miesięcy od 1 do 120."),
+        ("repeat_months", "121", "Podaj liczbę miesięcy od 1 do 120."),
+        ("repeat_months", "pół roku", "Podaj liczbę całkowitą, np. 120 000."),
+        ("repeat_km", "0", "Podaj liczbę kilometrów większą od 0."),
+    ],
+)
+def test_form_checks_the_repeat_interval(field: str, value: str, message: str) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        parse_form(ReminderForm, FORM | {"due_date": "2027-01-01", field: value})
+
+    assert form_errors(exc_info.value) == {field: message}
+
+
+def test_form_accepts_a_repeat_interval() -> None:
+    form = parse_form(
+        ReminderForm,
+        FORM | {"due_date": "2027-01-01", "repeat_months": "12", "repeat_km": "15 000"},
+    )
+
+    assert (form.repeat_months, form.repeat_km) == (12, 15_000)

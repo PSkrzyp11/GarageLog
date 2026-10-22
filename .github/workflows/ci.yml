@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+# Actions are pinned to commit SHAs, not tags: a tag can later be moved to different code.
+# Dependabot (.github/dependabot.yml) proposes updates, keeping the version comment in sync.
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
@@ -31,9 +34,9 @@ jobs:
       DATABASE_URL: postgresql+psycopg://garagelog:garagelog@127.0.0.1:5432/garagelog
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v10.3.1
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
         with:
           version: "0.10.5"
 
@@ -58,7 +61,7 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build image
         run: docker build --tag garagelog:ci .

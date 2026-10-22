@@ -1,0 +1,25 @@
+# Dependency update pull requests, once a month and grouped, so they don't flood the repo.
+# Security fixes are proposed straight away when "Dependabot security updates" is enabled
+# in the repository settings.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
