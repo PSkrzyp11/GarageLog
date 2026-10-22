@@ -374,6 +374,51 @@ summary:focus-visible {
   font-size: 0.9rem;
 }
 
+/* Charts */
+
+.charts {
+  display: grid;
+  gap: var(--space);
+  margin-top: var(--space);
+}
+
+.chart-card {
+  margin: 0;
+  min-width: 0; /* let the canvas shrink with the grid column */
+}
+
+.chart-card figcaption {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* Chart.js needs a sized, positioned box when maintainAspectRatio is off. */
+.chart-box {
+  position: relative;
+  height: 260px;
+}
+
+.chart-data {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.chart-data summary {
+  cursor: pointer;
+  color: var(--color-primary);
+}
+
+.table-scroll {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+@media (min-width: 64rem) {
+  .charts {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .consumption {
   margin-top: calc(var(--space) * 1.5);
 }

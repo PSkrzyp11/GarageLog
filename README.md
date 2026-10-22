@@ -14,8 +14,10 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 | Historia auta | Koszty i spalanie (benzyna + LPG) |
 |---|---|
 | ![Oś czasu tankowań i wpisów serwisowych z filtrem](docs/screenshots/history.png) | ![Koszt całkowity, koszt na km, podział na kategorie, spalanie z tabelą odcinków](docs/screenshots/costs.png) |
-| **Walidacja przebiegu** | **Telefon (390 px)** |
-| ![Komunikat: późniejszy wpis ma mniejszy przebieg](docs/screenshots/validation.png) | ![Podsumowanie kosztów na telefonie](docs/screenshots/mobile-costs.png) |
+| **Wykresy** | **Walidacja przebiegu** |
+| ![Wydatki miesięczne i cena benzyny oraz LPG w czasie](docs/screenshots/charts.png) | ![Komunikat: późniejszy wpis ma mniejszy przebieg](docs/screenshots/validation.png) |
+| **Telefon (390 px)** | |
+| ![Podsumowanie kosztów na telefonie](docs/screenshots/mobile-costs.png) | |
 
 ## Co potrafi
 
@@ -29,6 +31,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   okres; zamiast mylących liczb — „za mało danych” z wyjaśnieniem.
 - **Spalanie** — metodą „od pełnego do pełnego baku”, osobno dla każdego paliwa, z tabelą
   odcinków, z których wynika.
+- **Wykresy** — wydatki miesięczne (paliwo i pozostałe) i cena paliwa w czasie, z tabelą
+  danych obok każdego wykresu.
 - **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), z sekcją
   „Do zrobienia” na pulpicie.
 - **Eksport CSV** — pod polskiego Excela, odporny na CSV injection.
@@ -41,7 +45,7 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 |---|---|
 | Backend | Python 3.12+, FastAPI (endpointy synchroniczne), Pydantic |
 | Baza | PostgreSQL 18, SQLAlchemy 2.0, Alembic |
-| Interfejs | Jinja2 (renderowanie na serwerze), własny CSS, HTMX 2 |
+| Interfejs | Jinja2 (renderowanie na serwerze), własny CSS, HTMX 2, Chart.js 4 |
 | Bezpieczeństwo | Argon2id, sesje w bazie, CSRF, CSP |
 | Jakość | pytest (testy na prawdziwym PostgreSQL), ruff, GitHub Actions |
 | Uruchamianie | Docker Compose, uv |
@@ -146,11 +150,21 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
 ## Interfejs
 
 Strony są renderowane na serwerze i działają bez JavaScriptu. [HTMX](https://htmx.org) 2.0.11
-tylko je usprawnia ([ADR 0001](docs/decisions/0001-ssr-with-htmx.md)). Plik
-`app/static/js/htmx.min.js` pochodzi z paczki npm `htmx.org@2.0.11`
-(SHA-256 `d6fdc75f…4000f717`) i jest serwowany z naszej domeny. Pliki statyczne mają w adresie
-skrót zawartości (`app.css?v=…`), więc przeglądarka może je trzymać przez rok bez ryzyka
-nieaktualnego stylu.
+tylko je usprawnia ([ADR 0001](docs/decisions/0001-ssr-with-htmx.md)). Wykresy na stronie kosztów
+rysuje [Chart.js](https://www.chartjs.org) 4.5.1 z danych policzonych na serwerze
+([ADR 0007](docs/decisions/0007-charts-with-chartjs.md)); bez JavaScriptu zostaje tabela z tymi
+samymi liczbami.
+
+Obie biblioteki są w repozytorium (`app/static/js/`) i serwowane z naszej domeny, więc
+Content-Security-Policy nie dopuszcza żadnych zewnętrznych skryptów:
+
+| Plik | Źródło | SHA-256 |
+|---|---|---|
+| `htmx.min.js` | npm `htmx.org@2.0.11` | `d6fdc75f…4000f717` |
+| `chart.umd.min.js` | npm `chart.js@4.5.1` | `48444a82…05c9f54a` |
+
+Pliki statyczne mają w adresie skrót zawartości (`app.css?v=…`), więc przeglądarka może je
+trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Ograniczenia
 
@@ -171,7 +185,7 @@ nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Przypomnienia cykliczne, archiwizacja sprzedanego auta, wykresy kosztów miesięcznych,
+Przypomnienia cykliczne, archiwizacja sprzedanego auta, wykres spalania w czasie,
 import CSV, reset hasła, publiczne demo z HTTPS i limitem logowań.
 
 ## Licencja

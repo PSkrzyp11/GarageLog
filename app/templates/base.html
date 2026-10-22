@@ -15,6 +15,8 @@
   <meta name="htmx-config"
         content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "historyCacheSize": 0}'>
   <script src="{{ static_url(request, 'js/htmx.min.js') }}" defer></script>
+  {# Page-specific scripts (e.g. charts); `defer` keeps them in this order. #}
+  {% block scripts %}{% endblock %}
 </head>
 <body>
   <a class="skip-link" href="#content">Przejdź do treści</a>
