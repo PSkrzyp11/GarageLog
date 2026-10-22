@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
@@ -15,6 +15,7 @@ from app.deps import (
     OwnedFuelEntry,
     OwnedReading,
     OwnedServiceEntry,
+    ReceiptUpload,
 )
 from app.formatting import (
     decimal_for_input,
@@ -24,6 +25,7 @@ from app.formatting import (
     format_pln,
 )
 from app.models import Car, FuelEntry, OdometerReading, ServiceCategory, ServiceEntry, User
+from app.receipts import JPEG, ReceiptError, prepare_receipt
 from app.schemas import (
     FuelEntryForm,
     OdometerReadingForm,
@@ -101,11 +103,17 @@ def _delete_page(
     )
 
 
-def _errors(exc: ValidationError | EntryValidationError) -> dict[str, str]:
-    """Form errors from either the form validation or a rule checked in the service."""
-    if isinstance(exc, ValidationError):
-        return form_errors(exc)
-    return {exc.field: str(exc)}
+def _errors(
+    exc: ValidationError | EntryValidationError | ReceiptError, upload: bytes | None = None
+) -> dict[str, str]:
+    """Form errors from the form validation, a rule checked in the service or the receipt."""
+    if isinstance(exc, ReceiptError):
+        return {"receipt": str(exc)}
+    errors = form_errors(exc) if isinstance(exc, ValidationError) else {exc.field: str(exc)}
+    if upload is not None:
+        # Browsers never fill a file field in again: say so, or the receipt is silently lost.
+        errors["receipt"] = "Popraw błędy i wybierz plik paragonu jeszcze raz."
+    return errors
 
 
 # --- Service entries --------------------------------------------------------------------
@@ -213,12 +221,16 @@ def _fuel_form(
     entry: FuelEntry | None = None,
     errors: Mapping[str, str] | None = None,
     last_odometer_km: int | None = None,
+    receipt_type: str | None = None,
 ) -> Response:
     fuels = entries_service.allowed_fuel_types(car, entry)
     extra = {
         "fuel_options": [(fuel.value, fuel.label) for fuel in fuels],
         # A new refuel: shown as a hint, so the mileage is easy to check at the pump.
         "last_odometer_km": last_odometer_km,
+        # An edited refuel: its current receipt, if any (JPEG photo or PDF).
+        "receipt_type": receipt_type,
+        "jpeg": JPEG,
     }
     return _form_page(request, "entries/fuel_form.html", user, car, values, entry, errors, extra)
 
@@ -241,22 +253,31 @@ def new_fuel_entry_page(
 
 @router.post("/fuel/new")
 def create_fuel_entry(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, data: FormData
+    request: Request,
+    user: CurrentUser,
+    car: OwnedCar,
+    db: DbSession,
+    data: FormData,
+    upload: ReceiptUpload,
 ) -> Response:
     try:
         form = parse_form(FuelEntryForm, data)
-        entries_service.create_fuel_entry(db, car, form)
-    except (ValidationError, EntryValidationError) as exc:
+        receipt = prepare_receipt(upload) if upload is not None else None
+        entry = entries_service.create_fuel_entry(db, car, form)
+    except (ValidationError, EntryValidationError, ReceiptError) as exc:
         last_km = cars_service.current_odometer_km(db, car)
-        return _fuel_form(request, user, car, data, errors=_errors(exc), last_odometer_km=last_km)
+        errors = _errors(exc, upload)
+        return _fuel_form(request, user, car, data, errors=errors, last_odometer_km=last_km)
 
+    if receipt is not None:
+        entries_service.save_receipt(db, entry, receipt)
     db.commit()
     return _back_to_car(request, car)
 
 
 @router.get("/fuel/{fuel_id}/edit")
 def edit_fuel_entry_page(
-    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedFuelEntry
+    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedFuelEntry, db: DbSession
 ) -> Response:
     values = {
         "date": entry.date.isoformat(),
@@ -267,7 +288,8 @@ def edit_fuel_entry_page(
         "is_full_tank": "on" if entry.is_full_tank else "",
         "missed_previous": "on" if entry.missed_previous else "",
     }
-    return _fuel_form(request, user, car, values, entry=entry)
+    receipt_type = entries_service.receipt_content_type(db, entry)
+    return _fuel_form(request, user, car, values, entry=entry, receipt_type=receipt_type)
 
 
 @router.post("/fuel/{fuel_id}/edit")
@@ -278,15 +300,45 @@ def update_fuel_entry(
     entry: OwnedFuelEntry,
     db: DbSession,
     data: FormData,
+    upload: ReceiptUpload,
 ) -> Response:
     try:
         form = parse_form(FuelEntryForm, data)
+        receipt = prepare_receipt(upload) if upload is not None else None
         entries_service.update_fuel_entry(db, entry, car, form)
-    except (ValidationError, EntryValidationError) as exc:
-        return _fuel_form(request, user, car, data, entry=entry, errors=_errors(exc))
+    except (ValidationError, EntryValidationError, ReceiptError) as exc:
+        receipt_type = entries_service.receipt_content_type(db, entry)
+        errors = _errors(exc, upload)
+        return _fuel_form(
+            request, user, car, data, entry=entry, errors=errors, receipt_type=receipt_type
+        )
 
+    if receipt is not None:
+        entries_service.save_receipt(db, entry, receipt)
+    elif data.get("remove_receipt") == "on":
+        entries_service.remove_receipt(db, entry)
     db.commit()
     return _back_to_car(request, car)
+
+
+@router.get("/fuel/{fuel_id}/receipt")
+def fuel_receipt(entry: OwnedFuelEntry, db: DbSession) -> Response:
+    receipt = entries_service.get_receipt(db, entry)
+    if receipt is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    # A photo (re-encoded by us) opens in the browser. A PDF is only offered as a download, so
+    # whatever it contains is never shown as a page of this site.
+    is_photo = receipt.content_type == JPEG
+    disposition = "inline" if is_photo else "attachment"
+    filename = f"paragon-{entry.date.isoformat()}.{'jpg' if is_photo else 'pdf'}"
+    return Response(
+        receipt.data,
+        media_type=receipt.content_type,
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{filename}"',
+            "Cache-Control": "private, no-store",  # personal data, like the CSV export
+        },
+    )
 
 
 @router.get("/fuel/{fuel_id}/delete")

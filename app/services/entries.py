@@ -9,12 +9,13 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.formatting import format_liters, format_price_per_liter
-from app.models import Car, FuelEntry, FuelType, OdometerReading, ServiceEntry
+from app.models import Car, FuelEntry, FuelReceipt, FuelType, OdometerReading, ServiceEntry
 from app.odometer import OdometerPoint, find_conflict
+from app.receipts import PreparedReceipt
 from app.schemas import FuelEntryForm, OdometerReadingForm, ServiceEntryForm
 
 READING_LABEL = "odczyt licznika"
@@ -186,6 +187,33 @@ def update_reading(
     db.flush()
 
 
+# --- Receipts of refuels ----------------------------------------------------------------
+
+
+def save_receipt(db: Session, entry: FuelEntry, receipt: PreparedReceipt) -> None:
+    """Attach a receipt (already cleaned by app/receipts.py), replacing the previous one."""
+    remove_receipt(db, entry)
+    db.add(
+        FuelReceipt(fuel_entry_id=entry.id, content_type=receipt.content_type, data=receipt.data)
+    )
+    db.flush()
+
+
+def remove_receipt(db: Session, entry: FuelEntry) -> None:
+    db.execute(delete(FuelReceipt).where(FuelReceipt.fuel_entry_id == entry.id))
+
+
+def get_receipt(db: Session, entry: FuelEntry) -> FuelReceipt | None:
+    return db.scalars(
+        select(FuelReceipt).where(FuelReceipt.fuel_entry_id == entry.id)
+    ).one_or_none()
+
+
+def receipt_content_type(db: Session, entry: FuelEntry) -> str | None:
+    """Whether the refuel has a receipt (and what kind), without loading the file."""
+    return db.scalar(select(FuelReceipt.content_type).where(FuelReceipt.fuel_entry_id == entry.id))
+
+
 def delete_entry(db: Session, entry: ServiceEntry | FuelEntry | OdometerReading) -> None:
     # Removing a value can never make the remaining ones inconsistent, so no check is needed.
     db.delete(entry)
@@ -206,6 +234,7 @@ class TimelineItem:
     cost_pln: Decimal | None = None
     details: str | None = None
     notes: str | None = None
+    has_receipt: bool = False
 
 
 def _fuel_details(entry: FuelEntry) -> str:
@@ -238,6 +267,13 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
         )
         for entry in db.scalars(select(ServiceEntry).where(ServiceEntry.car_id == car.id))
     ]
+    with_receipt = set(
+        db.scalars(
+            select(FuelReceipt.fuel_entry_id)
+            .join(FuelEntry, FuelEntry.id == FuelReceipt.fuel_entry_id)
+            .where(FuelEntry.car_id == car.id)
+        )
+    )
     items += [
         TimelineItem(
             kind=EntryKind.FUEL,
@@ -248,6 +284,7 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
             badge="Tankowanie",
             cost_pln=entry.total_cost_pln,
             details=_fuel_details(entry),
+            has_receipt=entry.id in with_receipt,
         )
         for entry in db.scalars(select(FuelEntry).where(FuelEntry.car_id == car.id))
     ]

@@ -11,11 +11,12 @@ from decimal import Decimal
 import pytest
 from fastapi.routing import APIRoute, iter_route_contexts
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.main import create_app
-from app.models import Car, FuelEntry, OdometerReading, Reminder, ServiceEntry
+from app.models import Car, FuelEntry, FuelReceipt, OdometerReading, Reminder, ServiceEntry
 from tests.integration.helpers import (
     OTHER_EMAIL,
     add_car,
@@ -27,7 +28,9 @@ from tests.integration.helpers import (
     fuel_form,
     login,
     logout,
+    photo_bytes,
     post_form,
+    post_with_file,
     reading_form,
     register,
     reminder_form,
@@ -55,6 +58,7 @@ OWNED_ROUTES = [
     ("POST", "/cars/{car_id}/fuel/{fuel_id}/edit"),
     ("GET", "/cars/{car_id}/fuel/{fuel_id}/delete"),
     ("POST", "/cars/{car_id}/fuel/{fuel_id}/delete"),
+    ("GET", "/cars/{car_id}/fuel/{fuel_id}/receipt"),
     ("GET", "/cars/{car_id}/odometer/new"),
     ("POST", "/cars/{car_id}/odometer/new"),
     ("GET", "/cars/{car_id}/odometer/{reading_id}/edit"),
@@ -107,6 +111,13 @@ def victim_data(client: TestClient) -> VictimData:
     entry_id = add_service_entry(client, car_id, title="Wymiana oleju")
     reading_id = add_reading(client, car_id, date="2025-01-01", odometer_km="90000")
     fuel_id = add_fuel_entry(client, car_id, date="2025-02-01", odometer_km="95000")
+    # With a receipt, so a 404 on the receipt URL comes from the ownership check.
+    post_with_file(
+        client,
+        f"/cars/{car_id}/fuel/{fuel_id}/edit",
+        fuel_form(date="2025-02-01", odometer_km="95000"),
+        ("paragon.jpg", photo_bytes(), "image/jpeg"),
+    )
     reminder_id = add_reminder(client, car_id, title="Przegląd")
     logout(client)
     return VictimData(car_id, entry_id, fuel_id, reading_id, reminder_id)
@@ -130,6 +141,7 @@ def assert_victim_data_unchanged(db: Session, victim: VictimData) -> None:
     assert entry is not None and entry.title == "Wymiana oleju"
     assert reading is not None and reading.odometer_km == 90_000
     assert fuel is not None and fuel.liters == Decimal("42.50")
+    assert db.scalar(select(FuelReceipt.id).where(FuelReceipt.fuel_entry_id == fuel.id))
     assert reminder is not None and reminder.title == "Przegląd"
     assert reminder.completed_at is None  # "complete" by someone else must not work either
 

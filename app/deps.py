@@ -9,6 +9,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Path, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from app.db import get_db
 from app.models import Car, FuelEntry, OdometerReading, Reminder, ServiceEntry, User
@@ -31,6 +32,20 @@ async def get_form_data(request: Request) -> dict[str, str]:
 
 
 FormData = Annotated[dict[str, str], Depends(get_form_data)]
+
+
+async def get_uploaded_receipt(request: Request) -> bytes | None:
+    """The file chosen in the form's "receipt" field, or None when none was chosen.
+
+    Read whole: RequestBodyLimitMiddleware has already capped the request size.
+    """
+    upload = (await request.form()).get("receipt")
+    if not isinstance(upload, UploadFile) or not upload.filename:
+        return None  # an empty file field is still sent, with no file name
+    return await upload.read()
+
+
+ReceiptUpload = Annotated[bytes | None, Depends(get_uploaded_receipt)]
 
 
 class LoginRequired(Exception):
