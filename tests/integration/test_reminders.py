@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx2 import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,10 +11,13 @@ from app.models import Reminder
 from app.stats import add_months
 from app.timeutils import today
 from tests.integration.helpers import (
+    OTHER_EMAIL,
     add_car,
     add_fuel_entry,
     add_reminder,
     count,
+    login,
+    logout,
     post_form,
     register,
     reminder_form,
@@ -266,3 +270,59 @@ def test_edit_form_keeps_the_repeat_interval(client: TestClient, car_id: int) ->
 
     assert 'name="repeat_months"' in page and 'value="6"' in page
     assert 'value="10000"' in page
+
+
+# --- Calendar file (.ics) ---------------------------------------------------------------
+
+
+def calendar_lines(response: Response) -> list[str]:
+    return response.content.decode().replace("\r\n ", "").split("\r\n")
+
+
+def test_car_calendar_has_active_reminders_with_a_date(client: TestClient, car_id: int) -> None:
+    dated = add_reminder(client, car_id, title="OC", due_date="2027-01-15", notes="Polisa PZU")
+    add_reminder(client, car_id, title="Rozrząd", due_date="", due_odometer_km="180000")
+    done = add_reminder(client, car_id, title="Opony", due_date="2026-11-01")
+    complete(client, car_id, done)
+
+    response = client.get(f"/cars/{car_id}/reminders/calendar.ics")
+
+    assert response.headers["content-type"] == "text/calendar; charset=utf-8"
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="garagelog-golf-przypomnienia.ics"'
+    )
+    assert response.headers["cache-control"] == "private, no-store"
+    lines = calendar_lines(response)
+    assert lines.count("BEGIN:VEVENT") == 1  # no date: no event; done: not in the file
+    assert f"UID:garagelog-reminder-{dated}" in lines
+    assert "DTSTART;VALUE=DATE:20270115" in lines
+    assert "SUMMARY:Golf: OC" in lines
+    # A line break inside a text value is written as the two characters "\n".
+    assert "DESCRIPTION:Termin: do 15.01.2027\\nPolisa PZU" in lines
+
+
+def test_all_cars_calendar_has_only_the_users_own_reminders(
+    client: TestClient, car_id: int
+) -> None:
+    other_car = add_car(client, name="Astra", initial_odometer_km="50000", has_lpg="")
+    add_reminder(client, car_id, title="OC Golfa", due_date="2027-01-15")
+    add_reminder(client, other_car, title="OC Astry", due_date="2027-02-01")
+    logout(client)
+    register(client, email=OTHER_EMAIL)
+    stranger_car = add_car(client, name="Cudze", initial_odometer_km="1000", has_lpg="")
+    add_reminder(client, stranger_car, title="Cudze OC", due_date="2027-03-01")
+    logout(client)
+    login(client)
+
+    lines = calendar_lines(client.get("/reminders.ics"))
+
+    assert "SUMMARY:Golf: OC Golfa" in lines
+    assert "SUMMARY:Astra: OC Astry" in lines
+    assert not any("Cudze" in line for line in lines)
+
+
+def test_all_cars_calendar_needs_login(client: TestClient) -> None:
+    response = client.get("/reminders.ics", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("/login")

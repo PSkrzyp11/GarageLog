@@ -80,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(cars.router)
     app.include_router(entries.router)
     app.include_router(reminders.router)
+    app.include_router(reminders.calendar_router)
     app.include_router(export.router)
     app.include_router(importing.router)
 

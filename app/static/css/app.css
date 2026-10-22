@@ -770,6 +770,10 @@ input[type="checkbox"]:focus-visible {
   font-weight: 600;
 }
 
+.calendar-link {
+  margin-block: var(--space);
+}
+
 .car-card .car-actions {
   margin-top: 0.75rem;
 }

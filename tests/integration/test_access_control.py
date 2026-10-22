@@ -68,6 +68,7 @@ OWNED_ROUTES = [
     ("GET", "/cars/{car_id}/odometer/{reading_id}/delete"),
     ("POST", "/cars/{car_id}/odometer/{reading_id}/delete"),
     ("GET", "/cars/{car_id}/reminders"),
+    ("GET", "/cars/{car_id}/reminders/calendar.ics"),
     ("GET", "/cars/{car_id}/reminders/new"),
     ("POST", "/cars/{car_id}/reminders/new"),
     ("GET", "/cars/{car_id}/reminders/{reminder_id}/edit"),

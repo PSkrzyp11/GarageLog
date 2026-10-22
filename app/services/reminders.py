@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.formatting import format_date, format_km
+from app.ics import CalendarEvent, calendar
 from app.models import Car, Reminder, User
 from app.schemas import ReminderForm
 from app.services import cars as cars_service
@@ -86,8 +88,8 @@ def car_reminders(db: Session, car: Car) -> CarReminders:
     return CarReminders(sorted(active, key=lambda view: view.state.sort_key), done)
 
 
-def reminders_needing_attention(db: Session, user: User) -> list[ReminderView]:
-    """Overdue and due-soon reminders of all the user's cars, most urgent first."""
+def active_reminders(db: Session, user: User) -> list[ReminderView]:
+    """Active reminders of all the user's cars, most urgent first."""
     summaries = {summary.car.id: summary for summary in cars_service.list_cars(db, user)}
     day = today()
     views = [
@@ -96,8 +98,41 @@ def reminders_needing_attention(db: Session, user: User) -> list[ReminderView]:
             select(Reminder).where(Reminder.car_id.in_(summaries), Reminder.completed_at.is_(None))
         )
     ]
-    urgent = [view for view in views if view.state.status in NEEDS_ATTENTION]
-    return sorted(urgent, key=lambda view: view.state.sort_key)
+    return sorted(views, key=lambda view: view.state.sort_key)
+
+
+def reminders_needing_attention(db: Session, user: User) -> list[ReminderView]:
+    """Overdue and due-soon reminders of all the user's cars, most urgent first."""
+    return [view for view in active_reminders(db, user) if view.state.status in NEEDS_ATTENTION]
+
+
+def calendar_file(views: list[ReminderView], name: str) -> bytes:
+    """Active reminders with a due date as an .ics file (see app/ics.py). A reminder by mileage
+    only has no date to put in a calendar, so it is left out."""
+    events = [
+        CalendarEvent(
+            uid=f"garagelog-reminder-{view.reminder.id}",
+            day=view.reminder.due_date,
+            summary=f"{view.car.name}: {view.reminder.title}",
+            description=_calendar_description(view),
+        )
+        for view in views
+        if view.reminder.due_date is not None
+    ]
+    return calendar(events, name, now=dt.datetime.now(dt.UTC))
+
+
+def _calendar_description(view: ReminderView) -> str:
+    reminder = view.reminder
+    due = [f"do {format_date(reminder.due_date)}"]
+    if reminder.due_odometer_km is not None:
+        due.append(f"do {format_km(reminder.due_odometer_km)} (co nastąpi wcześniej)")
+    lines = [f"Termin: {' lub '.join(due)}"]
+    if view.repeat_text:
+        lines.append(f"Powtarza się {view.repeat_text}.")
+    if reminder.notes:
+        lines.append(reminder.notes)
+    return "\n".join(lines)
 
 
 def create_reminder(db: Session, car: Car, form: ReminderForm) -> Reminder:

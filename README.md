@@ -37,7 +37,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 - **Wykresy** — wydatki miesięczne (paliwo i pozostałe) i cena paliwa w czasie, z tabelą
   danych obok każdego wykresu.
 - **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), także
-  cykliczne (np. olej co rok lub 15 000 km), z sekcją „Do zrobienia” na pulpicie.
+  cykliczne (np. olej co rok lub 15 000 km), z sekcją „Do zrobienia” na pulpicie; terminy
+  można pobrać jako plik `.ics` do Kalendarza Google, Apple albo Outlooka.
 - **Eksport i import CSV** — pod polskiego Excela, odporny na CSV injection; wyeksportowane
   pliki (także poprawione w Excelu) można wczytać do innego auta lub konta — wszystko albo
   nic, bez dublowania wpisów, które już są.
@@ -230,8 +231,8 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Archiwizacja sprzedanego auta, wykres spalania w czasie, eksport terminów do kalendarza
-(.ics), paragony także przy serwisie, reset hasła.
+Archiwizacja sprzedanego auta, wykres spalania w czasie, paragony także przy serwisie,
+subskrypcja kalendarza (zamiast pobierania pliku), reset hasła.
 
 ## Licencja
 

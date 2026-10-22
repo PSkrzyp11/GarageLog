@@ -42,6 +42,9 @@
       </li>
     {% endfor %}
   </ul>
+  <p class="calendar-link">
+    <a href="{{ url_for('all_reminders_calendar') }}">Terminy wszystkich aut do kalendarza (.ics)</a>
+  </p>
 {% else %}
   <section class="card empty-state">
     <p>Nie masz jeszcze żadnego auta.</p>
