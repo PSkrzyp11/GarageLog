@@ -5,6 +5,7 @@ FastAPI has no built-in user sessions or CSRF protection, so they live here, in 
 
 import hashlib
 import hmac
+import re
 import secrets
 from collections.abc import Awaitable, Callable
 
@@ -13,6 +14,8 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import HTTPException, Request, Response, status
 from markupsafe import Markup
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from app.receipts import MAX_RECEIPT_BYTES
 
 SESSION_COOKIE = "session"
 CSRF_COOKIE = "csrftoken"
@@ -40,6 +43,9 @@ HSTS_HEADER = "max-age=31536000"
 
 # The largest form (a 2 000-character note in Polish, URL-encoded) is about 20 KB.
 MAX_REQUEST_BODY_BYTES = 64 * 1024
+# Only the refuel forms may carry a file (a receipt), so only they get a larger limit.
+UPLOAD_PATHS = re.compile(r"/cars/\d+/fuel/(new|\d+/edit)")
+MAX_UPLOAD_REQUEST_BYTES = MAX_RECEIPT_BYTES + MAX_REQUEST_BODY_BYTES
 
 # --- Passwords --------------------------------------------------------------------------
 
@@ -224,13 +230,18 @@ class RequestBodyLimitMiddleware:
             return
 
         received = 0
+        limit = (
+            MAX_UPLOAD_REQUEST_BYTES
+            if UPLOAD_PATHS.fullmatch(scope["path"])
+            else MAX_REQUEST_BODY_BYTES
+        )
 
         async def limited_receive() -> Message:
             nonlocal received
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > MAX_REQUEST_BODY_BYTES:
+                if received > limit:
                     # Raised while a route reads the form, so the usual error page is shown.
                     raise HTTPException(
                         status.HTTP_413_CONTENT_TOO_LARGE, "Przesłane dane są za duże."

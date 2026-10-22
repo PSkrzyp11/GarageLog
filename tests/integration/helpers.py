@@ -1,9 +1,11 @@
 """Helpers that drive the app the way a browser would (forms with CSRF tokens)."""
 
+import io
 import re
 
 from fastapi.testclient import TestClient
 from httpx2 import Response
+from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -121,6 +123,23 @@ def add_service_entry(client: TestClient, car_id: int, **overrides: str) -> int:
     response = post_form(client, url, service_form(**overrides), form_page=url)
     assert response.status_code == 303, response.text
     return _newest_entry_id(client, car_id, "service")
+
+
+def photo_bytes(size: tuple[int, int] = (300, 400)) -> bytes:
+    """A small JPEG, like a phone photo of a receipt."""
+    output = io.BytesIO()
+    Image.new("RGB", size, "white").save(output, "JPEG")
+    return output.getvalue()
+
+
+def post_with_file(
+    client: TestClient, url: str, data: dict[str, str], file: tuple[str, bytes, str]
+) -> Response:
+    """Submit a multipart form (the refuel form with a receipt) from the page at `url`."""
+    token = csrf_token_from(client, url)
+    return client.post(
+        url, data=data | {"csrf_token": token}, files={"receipt": file}, follow_redirects=False
+    )
 
 
 def add_fuel_entry(client: TestClient, car_id: int, **overrides: str) -> int:

@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Index,
+    LargeBinary,
     MetaData,
     Numeric,
     SmallInteger,
@@ -261,6 +262,32 @@ class FuelEntry(Base):
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FuelReceipt(Base):
+    """A photo or PDF of a refuel's receipt (at most one per refuel).
+
+    A separate table, so listing refuels never loads file contents. Stored in the database
+    rather than on disk: the daily pg_dump backs it up, and deleting a refuel or a car removes
+    the file too (CASCADE). Photos are cleaned and shrunk first — see app/receipts.py.
+    """
+
+    __tablename__ = "fuel_receipts"
+    __table_args__ = (
+        CheckConstraint(
+            "content_type IN ('image/jpeg', 'application/pdf')", name="content_type_values"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fuel_entry_id: Mapped[int] = mapped_column(
+        ForeignKey("fuel_entries.id", ondelete="CASCADE"), unique=True
+    )
+    content_type: Mapped[str] = mapped_column(String(30))
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )
 
 

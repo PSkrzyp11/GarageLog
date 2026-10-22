@@ -26,6 +26,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 - **Auta** — kilka aut na konto, paliwo główne + opcjonalna instalacja LPG.
 - **Historia** — tankowania (pełne / częściowe / po pominiętym tankowaniu), serwis i inne
   wydatki, odczyty licznika; wspólna oś czasu z filtrem rodzaju i roku.
+- **Paragony** — do tankowania można dołączyć zdjęcie (także prosto z aparatu telefonu)
+  albo PDF; ze zdjęcia usuwana jest lokalizacja i inne metadane.
 - **Spójny przebieg** — wpisy można dopisywać w dowolnej kolejności (stare faktury), ale
   przebieg nie może maleć z upływem czasu; komunikat wskazuje konfliktowy wpis.
 - **Koszty** — koszt całkowity, paliwo, podział na kategorie i koszt na kilometr za wybrany
@@ -175,6 +177,8 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
 - Limit 64 KB na treść żądania: formularz jest czytany (sprawdzenie CSRF), zanim wiadomo,
   kto go wysłał, a ani uvicorn, ani Starlette nie ograniczają jego rozmiaru.
 - Eksport CSV: tekst zaczynający się od `=`, `+`, `-`, `@` nie stanie się formułą w Excelu.
+- Paragony: typ rozpoznawany po zawartości, zdjęcia zapisywane od nowa bez metadanych (GPS),
+  PDF tylko do pobrania, do 10 MB ([ADR 0009](docs/decisions/0009-receipts-in-database.md)).
 - Zależności: Dependabot proponuje aktualizacje raz w miesiącu; akcje GitHub w CI są
   przypięte do SHA commitów, nie do tagów, które można przesunąć.
 - Sekrety tylko w zmiennych środowiskowych (`.env` poza repozytorium); w produkcji aplikacja
@@ -224,8 +228,8 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Archiwizacja sprzedanego auta, wykres spalania w czasie, import CSV, zdjęcia paragonów,
-eksport terminów do kalendarza (.ics), reset hasła.
+Archiwizacja sprzedanego auta, wykres spalania w czasie, import CSV, eksport terminów do
+kalendarza (.ics), paragony także przy serwisie, reset hasła.
 
 ## Licencja
 
