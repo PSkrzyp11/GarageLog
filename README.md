@@ -69,6 +69,9 @@ hasło: `docker compose exec -e DEMO_PASSWORD=... app python -m scripts.seed_dem
 
 Aplikacja: <http://127.0.0.1:8000>. Kontener sam wykonuje migracje przy starcie.
 
+Na publiczny serwer: [deploy/](deploy/README.md) — ta sama aplikacja za Caddy (HTTPS
+z Let's Encrypt), w trybie produkcyjnym, z możliwością zamknięcia rejestracji.
+
 ## Kopie zapasowe
 
 `docker compose up` uruchamia też kontener `backup`: przy starcie i potem co 24 godziny
@@ -155,6 +158,8 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
 ## Bezpieczeństwo
 
 - Hasła: Argon2id; nieudane logowanie nie zdradza, czy konto istnieje (także czasem odpowiedzi).
+  Po 5 nieudanych próbach na jeden e-mail albo 20 z jednego adresu IP logowanie jest
+  wstrzymane na 15 minut (liczone w bazie, także dla nieistniejących kont).
   Zmiana hasła wymaga obecnego hasła i wylogowuje pozostałe urządzenia.
 - Sesje w bazie: w ciasteczku (`HttpOnly`, `SameSite=Lax`, `Secure` w produkcji) losowy token,
   w bazie tylko jego skrót SHA-256; nowy token przy każdym logowaniu
@@ -202,16 +207,16 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 - brak resetu hasła, weryfikacji e-maila i usuwania konta z poziomu aplikacji;
 - formularz rejestracji zdradza, że e-mail jest już zajęty (bez potwierdzania e-maila nie da
   się tego uniknąć — formularz logowania niczego nie zdradza);
-- brak limitu prób logowania — potrzebny przed publicznym wdrożeniem;
 - dwa jednoczesne zapisy z dwóch kart przeglądarki nie są blokowane (reguła przebiegu może
   wtedy przepuścić konflikt);
 - koszt nie obejmuje ceny zakupu ani utraty wartości auta;
-- domyślnie aplikacja lokalna (Docker Compose) — publiczne demo nie jest wdrożone.
+- domyślnie aplikacja lokalna (Docker Compose); do serwera jest gotowy wzór w `deploy/`,
+  ale publiczne demo nie jest wdrożone.
 
 ## Możliwe dalsze kroki
 
-Archiwizacja sprzedanego auta, wykres spalania w czasie, import CSV, reset hasła, dostęp
-z telefonu (np. przez Tailscale), publiczne demo z HTTPS i limitem logowań.
+Archiwizacja sprzedanego auta, wykres spalania w czasie, import CSV, zdjęcia paragonów,
+eksport terminów do kalendarza (.ics), reset hasła.
 
 ## Licencja
 

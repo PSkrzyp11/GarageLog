@@ -61,3 +61,11 @@ def test_login_form_lowercases_email_and_requires_both_fields() -> None:
         "email": "To pole jest wymagane.",
         "password": "To pole jest wymagane.",
     }
+
+
+def test_login_form_rejects_an_email_no_account_can_have() -> None:
+    # Longer than users.email allows; it would not fit the login_failures table either.
+    with pytest.raises(ValidationError) as exc_info:
+        LoginForm(email="a" * 250 + "@example.com", password="x")
+
+    assert form_errors(exc_info.value) == {"email": "Podaj poprawny adres e-mail."}

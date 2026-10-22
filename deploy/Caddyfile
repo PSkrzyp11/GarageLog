@@ -1,0 +1,7 @@
+# Caddy gets and renews the HTTPS certificate for $DOMAIN by itself and redirects http → https.
+# It replaces any X-Forwarded-* headers sent by the visitor with its own, so the app sees
+# the real address and protocol.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8000
+}

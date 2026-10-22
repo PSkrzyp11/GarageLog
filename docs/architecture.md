@@ -125,3 +125,7 @@ flowchart LR
 zgłosi gotowość, i przed startem wykonuje migracje. Porty są dostępne tylko z `127.0.0.1`.
 Kontener `backup` robi kopię bazy przy starcie i potem co 24 godziny
 (`scripts/backup.sh`); szczegóły w README.
+
+Na publicznym serwerze ([deploy/](../deploy/README.md)) przed aplikacją stoi Caddy:
+kończy HTTPS i przekazuje adres odwiedzającego w `X-Forwarded-For`, a aplikacja i baza
+nie mają otwartych portów.

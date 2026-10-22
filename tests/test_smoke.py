@@ -1,10 +1,14 @@
 """Tests that need no database: anonymous pages, static files, headers and cookie flags."""
 
+import re
+
 from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
 from app.security import CSRF_COOKIE, MAX_REQUEST_BODY_BYTES
+
+CSRF_INPUT = re.compile(r'name="csrf_token" value="([^"]+)"')
 
 
 def test_health_returns_ok(client: TestClient) -> None:
@@ -101,3 +105,27 @@ def test_cookies_are_secure_in_production() -> None:
 
 def test_logout_requires_post(client: TestClient) -> None:
     assert client.get("/logout").status_code == 405
+
+
+def test_hsts_only_in_production(client: TestClient) -> None:
+    settings = Settings(_env_file=None, app_env="production", secret_key="x" * 48)
+    with TestClient(create_app(settings)) as production:
+        assert production.get("/login").headers["strict-transport-security"] == "max-age=31536000"
+
+    assert "strict-transport-security" not in client.get("/login").headers
+
+
+def test_registration_can_be_closed() -> None:
+    settings = Settings(_env_file=None, app_env="test", registration_open=False)
+
+    with TestClient(create_app(settings)) as client:
+        login_page = client.get("/login").text
+        token = CSRF_INPUT.search(login_page).group(1)
+        page = client.get("/register")
+        form = client.post("/register", data={"csrf_token": token, "email": "x@example.com"})
+
+    assert "Załóż konto" not in login_page
+    assert page.status_code == 403
+    assert "Zakładanie nowych kont jest wyłączone." in page.text
+    assert form.status_code == 403
+    assert "Zakładanie nowych kont jest wyłączone." in form.text

@@ -18,6 +18,8 @@
     <button type="submit" class="button">Zaloguj się</button>
   </form>
 
+  {% if request.app.state.settings.registration_open %}
   <p class="muted">Nie masz konta? <a href="{{ url_for('register_page') }}">Załóż konto</a></p>
+  {% endif %}
 </section>
 {% endblock %}

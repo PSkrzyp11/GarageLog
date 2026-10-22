@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # 127.0.0.1, not "localhost": on Windows "localhost" tries IPv6 (::1) first, while the
     # compose database port is bound to IPv4 only — the connection would hang until timeout.
     database_url: str = "postgresql+psycopg://garagelog:garagelog@127.0.0.1:5432/garagelog"
+    # On a public server: create your account, then set REGISTRATION_OPEN=false so nobody
+    # else can sign up.
+    registration_open: bool = True
 
     @model_validator(mode="after")
     def require_real_secret_in_production(self) -> "Settings":

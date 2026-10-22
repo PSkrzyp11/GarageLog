@@ -5,11 +5,11 @@ Functions here only flush; the route decides when the whole operation is committ
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import User, UserSession
+from app.models import LoginFailure, User, UserSession
 from app.security import (
     generate_session_token,
     hash_password,
@@ -20,6 +20,12 @@ from app.security import (
 )
 
 SESSION_LIFETIME = timedelta(days=14)
+
+# Login throttling: a few typos are fine; a password-guessing script gets stuck. Counted per
+# e-mail (guessing one account) and per IP address (trying many accounts from one place).
+LOGIN_FAILURE_WINDOW = timedelta(minutes=15)
+MAX_FAILURES_PER_EMAIL = 5
+MAX_FAILURES_PER_IP = 20
 
 
 class EmailAlreadyRegisteredError(Exception):
@@ -56,6 +62,41 @@ def authenticate(db: Session, email: str, password: str) -> User | None:
     if password_needs_rehash(user.password_hash):
         user.password_hash = hash_password(password)
     return user
+
+
+def login_blocked(db: Session, email: str, ip: str) -> bool:
+    """True while there were too many recent failed logins for this e-mail or address.
+
+    Checked before the password, so a blocked attempt costs no hashing and — because the
+    answer is the same for existing and unknown e-mails — reveals nothing about accounts.
+    """
+    since = datetime.now(UTC) - LOGIN_FAILURE_WINDOW
+
+    def recent_failures(condition: ColumnElement[bool]) -> int:
+        return db.scalar(
+            select(func.count())
+            .select_from(LoginFailure)
+            .where(condition, LoginFailure.created_at > since)
+        )
+
+    return (
+        recent_failures(LoginFailure.email == email) >= MAX_FAILURES_PER_EMAIL
+        or recent_failures(LoginFailure.ip == ip) >= MAX_FAILURES_PER_IP
+    )
+
+
+def record_login_failure(db: Session, email: str, ip: str) -> None:
+    # Housekeeping: older failures no longer count, so the table stays small.
+    db.execute(
+        delete(LoginFailure).where(LoginFailure.created_at <= datetime.now(UTC) - timedelta(days=1))
+    )
+    db.add(LoginFailure(email=email, ip=ip))
+    db.flush()
+
+
+def clear_login_failures(db: Session, email: str) -> None:
+    """After a successful login the owner's own typos stop counting."""
+    db.execute(delete(LoginFailure).where(LoginFailure.email == email))
 
 
 def create_session(db: Session, user: User) -> str:
