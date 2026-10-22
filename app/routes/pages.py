@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from app.deps import CurrentUser, DbSession
 from app.services import cars as cars_service
 from app.services import costs as costs_service
+from app.services import reminders as reminders_service
 from app.templating import render
 from app.timeutils import today
 
@@ -23,6 +24,7 @@ def dashboard(request: Request, user: CurrentUser, db: DbSession) -> HTMLRespons
             "cars": cars_service.list_cars(db, user),
             "year": current_year,
             "year_costs": costs_service.costs_since(db, user, dt.date(current_year, 1, 1)),
+            "urgent_reminders": reminders_service.reminders_needing_attention(db, user),
         },
     )
 

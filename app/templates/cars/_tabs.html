@@ -1,9 +1,11 @@
-{# Navigation between the pages of one car. `active` is "history" or "costs". #}
+{# Navigation between the pages of one car. `active` is "history", "costs" or "reminders". #}
 {% macro car_tabs(car, active) %}
 <nav class="tabs" aria-label="{{ car.name }}">
   <a href="{{ url_for('car_detail', car_id=car.id) }}"
      {% if active == "history" %}aria-current="page"{% endif %}>Historia</a>
   <a href="{{ url_for('car_costs', car_id=car.id) }}"
      {% if active == "costs" %}aria-current="page"{% endif %}>Koszty</a>
+  <a href="{{ url_for('car_reminders', car_id=car.id) }}"
+     {% if active == "reminders" %}aria-current="page"{% endif %}>Przypomnienia</a>
 </nav>
 {% endmacro %}

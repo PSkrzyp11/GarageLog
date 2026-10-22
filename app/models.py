@@ -240,3 +240,29 @@ class FuelEntry(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class Reminder(Base):
+    """Something to do by a date, by a mileage, or both — whichever comes first."""
+
+    __tablename__ = "reminders"
+    __table_args__ = (
+        CheckConstraint(
+            "due_date IS NOT NULL OR due_odometer_km IS NOT NULL", name="has_due_condition"
+        ),
+        CheckConstraint("due_odometer_km >= 0", name="due_odometer_km_non_negative"),
+        # Active reminders of a car: WHERE car_id = ? AND completed_at IS NULL.
+        Index("ix_reminders_car_id_completed_at", "car_id", "completed_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    car_id: Mapped[int] = mapped_column(ForeignKey("cars.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(120))
+    due_date: Mapped[dt.date | None] = mapped_column(Date)
+    due_odometer_km: Mapped[int | None]
+    notes: Mapped[str | None] = mapped_column(Text)
+    # Set when marked as done; the status (overdue, due soon…) is calculated, never stored.
+    completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

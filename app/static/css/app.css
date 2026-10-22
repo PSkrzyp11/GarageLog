@@ -8,6 +8,9 @@
   --color-border: #dde2e8;
   --color-error: #b42318;
   --color-fuel: #1d7a4d;
+  --color-warning: #b54708;
+  --color-warning-text: #93370d;
+  --color-warning-bg: #fffaeb;
   --color-error-bg: #fef3f2;
   --radius: 8px;
   --space: 1rem;
@@ -340,6 +343,70 @@ textarea:focus-visible {
   .cost-table progress {
     display: inline-block;
   }
+}
+
+/* Reminders */
+
+.reminder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space);
+  display: grid;
+  gap: calc(var(--space) * 0.75);
+}
+
+.reminder h3 {
+  font-size: 1rem;
+  margin: 0.25rem 0;
+}
+
+.reminder p {
+  margin: 0.25rem 0;
+}
+
+.reminder-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reminder-overdue {
+  border-left: 4px solid var(--color-error);
+}
+
+.reminder-due_soon {
+  border-left: 4px solid var(--color-warning);
+}
+
+.reminder-done {
+  opacity: 0.8;
+}
+
+.badge-overdue {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.badge-due_soon {
+  color: var(--color-warning-text);
+  border-color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.badge-done {
+  color: var(--color-fuel);
+  border-color: var(--color-fuel);
+}
+
+.button-small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.dashboard-reminders h2 {
+  font-size: 1.15rem;
 }
 
 /* Car timeline */

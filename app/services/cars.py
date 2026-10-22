@@ -12,7 +12,7 @@ from sqlalchemy import Subquery, func, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Car, FuelEntry, OdometerReading, ServiceEntry, User
+from app.models import Car, FuelEntry, OdometerReading, Reminder, ServiceEntry, User
 from app.schemas import CarCreateForm, CarForm
 from app.timeutils import today
 
@@ -95,18 +95,22 @@ class EntryCounts:
     odometer_readings: int
     service_entries: int
     fuel_entries: int
+    reminders: int
 
 
 def count_entries(db: Session, car: Car) -> EntryCounts:
     """What deleting the car would remove — shown on the confirmation page."""
 
-    def count(model: type[OdometerReading] | type[ServiceEntry] | type[FuelEntry]) -> int:
+    def count(
+        model: type[OdometerReading | ServiceEntry | FuelEntry | Reminder],
+    ) -> int:
         return db.scalar(select(func.count()).select_from(model).where(model.car_id == car.id))
 
     return EntryCounts(
         odometer_readings=count(OdometerReading),
         service_entries=count(ServiceEntry),
         fuel_entries=count(FuelEntry),
+        reminders=count(Reminder),
     )
 
 

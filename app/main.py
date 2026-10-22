@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.deps import LoginRequired
-from app.routes import auth, cars, entries, pages
+from app.routes import auth, cars, entries, pages, reminders
 from app.security import security_middleware, verify_csrf
 from app.templating import render
 
@@ -78,5 +78,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(cars.router)
     app.include_router(entries.router)
+    app.include_router(reminders.router)
 
     return app

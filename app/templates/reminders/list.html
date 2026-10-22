@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{# "with context": the macros need `request` for url_for and the CSRF field #}
+{% from "cars/_tabs.html" import car_tabs with context %}
+{% from "reminders/_item.html" import reminder_item with context %}
+
+{% block title %}Przypomnienia — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
+
+<div class="page-header">
+  <h1>{{ car.name }}</h1>
+  <a class="button" href="{{ url_for('new_reminder_page', car_id=car.id) }}">+ Przypomnienie</a>
+</div>
+{{ car_tabs(car, "reminders") }}
+
+{% if reminders.active %}
+  <ul class="reminder-list">
+    {% for view in reminders.active %}{{ reminder_item(view) }}{% endfor %}
+  </ul>
+{% else %}
+  <section class="card empty-state">
+    <p>Brak aktywnych przypomnień.</p>
+    <p class="muted">Np. „Wymiana oleju” do 15 000 km lub za rok — przypomnimy o tym, co nastąpi wcześniej.</p>
+  </section>
+{% endif %}
+
+{% if reminders.done %}
+  <section class="timeline-section">
+    <h2>Ostatnio wykonane</h2>
+    <ul class="reminder-list">
+      {% for view in reminders.done %}{{ reminder_item(view) }}{% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+<section class="notes muted">
+  <h2>Jak liczymy</h2>
+  <ul>
+    <li>Przypomnienie z datą i przebiegiem staje się zaległe, gdy minie data albo aktualny
+      przebieg osiągnie wartość docelową — co nastąpi wcześniej.</li>
+    <li>„Wkrótce” oznacza najwyżej 30 dni lub 1 000 km do terminu.</li>
+    <li>Aktualny przebieg to najwyższy zapisany w historii auta, więc zapisuj tankowania albo
+      odczyty licznika, żeby przypomnienia „według przebiegu” działały.</li>
+  </ul>
+</section>
+{% endblock %}

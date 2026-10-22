@@ -2,7 +2,7 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 7 (spalanie metodą „od pełnego do pełnego baku”, osobno dla każdego paliwa).
+> Projekt w budowie — obecnie etap 8 (przypomnienia według daty, przebiegu lub obu).
 
 ## Stack
 
