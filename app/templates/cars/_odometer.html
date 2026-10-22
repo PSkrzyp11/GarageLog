@@ -1,0 +1,7 @@
+{#
+  The car's current mileage. After an entry is deleted with HTMX, the response sends this
+  again with hx-swap-oob ("out of band"), so the header updates together with the list.
+#}
+<dd id="current-odometer"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {%- if odometer_km is not none %}{{ odometer_km | km }}{% else %}Brak danych{% endif -%}
+</dd>

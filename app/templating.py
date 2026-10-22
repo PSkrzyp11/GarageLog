@@ -16,6 +16,7 @@ from app.formatting import (
 )
 from app.models import Car
 from app.security import csrf_input
+from app.static_files import static_url
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -33,9 +34,21 @@ def car_summary(car: Car) -> str:
     return " · ".join(parts)
 
 
+def is_htmx(request: Request) -> bool:
+    """An HTMX request that swaps a part of the page, so a fragment is enough.
+
+    A history-restore request (Back button after an HTMX navigation) needs the full page.
+    """
+    return (
+        request.headers.get("HX-Request") == "true"
+        and request.headers.get("HX-History-Restore-Request") != "true"
+    )
+
+
 # Jinja2Templates enables autoescaping for .html files, which protects against XSS.
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 templates.env.globals["csrf_input"] = csrf_input
+templates.env.globals["static_url"] = static_url
 templates.env.filters["km"] = format_km
 templates.env.filters["pln"] = format_pln
 templates.env.filters["pl_date"] = format_date
@@ -54,6 +67,8 @@ def render(
 ) -> HTMLResponse:
     # Defaults every template may rely on; the caller's context overrides them.
     full_context = {"user": None, "errors": {}, **(context or {})}
+    # The same URL may return a full page or an HTMX fragment: caches must keep them apart.
+    all_headers = {"Vary": "HX-Request", **(headers or {})}
     return templates.TemplateResponse(
-        request, name, full_context, status_code=status_code, headers=headers
+        request, name, full_context, status_code=status_code, headers=all_headers
     )

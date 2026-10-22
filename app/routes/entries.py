@@ -31,9 +31,10 @@ from app.schemas import (
     form_errors,
     parse_form,
 )
+from app.services import cars as cars_service
 from app.services import entries as entries_service
 from app.services.entries import EntryValidationError
-from app.templating import render
+from app.templating import is_htmx, render
 from app.timeutils import today
 
 router = APIRouter(prefix="/cars/{car_id}")
@@ -43,6 +44,19 @@ CATEGORY_OPTIONS = [(category.value, category.label) for category in ServiceCate
 
 def _back_to_car(request: Request, car: Car) -> RedirectResponse:
     return RedirectResponse(request.url_for("car_detail", car_id=car.id), status.HTTP_303_SEE_OTHER)
+
+
+def _after_delete(request: Request, car: Car, db: DbSession) -> Response:
+    """Without JavaScript: back to the car page. With HTMX the response replaces the deleted
+    row, so its empty main content removes the row; the current mileage in the page header is
+    sent "out of band" (hx-swap-oob), because deleting an entry may lower it."""
+    if not is_htmx(request):
+        return _back_to_car(request, car)
+    return render(
+        request,
+        "cars/_odometer.html",
+        {"odometer_km": cars_service.current_odometer_km(db, car), "oob": True},
+    )
 
 
 def _form_page(
@@ -185,7 +199,7 @@ def delete_service_entry(
 ) -> Response:
     entries_service.delete_entry(db, entry)
     db.commit()
-    return _back_to_car(request, car)
+    return _after_delete(request, car, db)
 
 
 # --- Refuels ----------------------------------------------------------------------------
@@ -289,7 +303,7 @@ def delete_fuel_entry(
 ) -> Response:
     entries_service.delete_entry(db, entry)
     db.commit()
-    return _back_to_car(request, car)
+    return _after_delete(request, car, db)
 
 
 # --- Odometer readings ------------------------------------------------------------------
@@ -376,4 +390,4 @@ def delete_reading(
 ) -> Response:
     entries_service.delete_entry(db, reading)
     db.commit()
-    return _back_to_car(request, car)
+    return _after_delete(request, car, db)

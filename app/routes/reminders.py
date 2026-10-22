@@ -10,7 +10,7 @@ from app.deps import CurrentUser, DbSession, FormData, OwnedCar, OwnedReminder
 from app.models import Car, Reminder, User
 from app.schemas import ReminderForm, form_errors, parse_form
 from app.services import reminders as reminders_service
-from app.templating import render
+from app.templating import is_htmx, render
 
 router = APIRouter(prefix="/cars/{car_id}/reminders")
 
@@ -109,13 +109,28 @@ def update_reminder(
     return _back(request, car)
 
 
+def _after_status_change(
+    request: Request, car: Car, reminder: Reminder, db: DbSession, data: Mapping[str, str]
+) -> Response:
+    """HTMX: just the updated card (it stays visible, so "Przywróć" can undo a misclick).
+    Without JavaScript: back to the page the form came from."""
+    if not is_htmx(request):
+        return _back(request, car, data)
+    return_to = "dashboard" if data.get("return_to") == "dashboard" else "reminders"
+    return render(
+        request,
+        "reminders/_item_fragment.html",
+        {"view": reminders_service.reminder_view(db, reminder, car), "return_to": return_to},
+    )
+
+
 @router.post("/{reminder_id}/complete")
 def complete_reminder(
     request: Request, car: OwnedCar, reminder: OwnedReminder, db: DbSession, data: FormData
 ) -> Response:
     reminders_service.set_completed(db, reminder, completed=True)
     db.commit()
-    return _back(request, car, data)
+    return _after_status_change(request, car, reminder, db, data)
 
 
 @router.post("/{reminder_id}/reopen")
@@ -124,7 +139,7 @@ def reopen_reminder(
 ) -> Response:
     reminders_service.set_completed(db, reminder, completed=False)
     db.commit()
-    return _back(request, car, data)
+    return _after_status_change(request, car, reminder, db, data)
 
 
 @router.get("/{reminder_id}/delete")

@@ -43,6 +43,11 @@ def _view(reminder: Reminder, car: Car, current_km: int | None, day: dt.date) ->
     return ReminderView(reminder, car, state)
 
 
+def reminder_view(db: Session, reminder: Reminder, car: Car) -> ReminderView:
+    """A single reminder with its current status (e.g. to re-render it after an action)."""
+    return _view(reminder, car, cars_service.current_odometer_km(db, car), today())
+
+
 @dataclass(frozen=True)
 class CarReminders:
     active: list[ReminderView]  # most urgent first

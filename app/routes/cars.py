@@ -12,7 +12,7 @@ from app.services import costs as costs_service
 from app.services import entries as entries_service
 from app.services.entries import EntryKind
 from app.stats import MIN_DISTANCE_KM, Period
-from app.templating import render
+from app.templating import is_htmx, render
 
 router = APIRouter(prefix="/cars")
 
@@ -77,8 +77,11 @@ def car_detail(
     kind: str = "",
     year: str = "",
 ) -> Response:
-    """The car with its timeline. ?kind=service|odometer and ?year=2025 filter the list;
-    unknown values are ignored (the filter just shows everything)."""
+    """The car with its timeline. ?kind=service|fuel|odometer and ?year=2025 filter the list;
+    unknown values are ignored (the filter just shows everything).
+
+    For an HTMX request (the filters changed) only the timeline fragment is rendered.
+    """
     timeline = entries_service.car_timeline(db, car)
     years = sorted({item.date.year for item in timeline}, reverse=True)
     selected_kind = next((option for option in EntryKind if option.value == kind), None)
@@ -86,7 +89,7 @@ def car_detail(
 
     return render(
         request,
-        "cars/detail.html",
+        "cars/_timeline.html" if is_htmx(request) else "cars/detail.html",
         {
             "user": user,
             "car": car,
@@ -105,7 +108,10 @@ def car_detail(
 def car_costs(
     request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, period: str = ""
 ) -> Response:
-    """Cost summary for ?period=all|year|12m (anything else: the whole history)."""
+    """Cost summary for ?period=all|year|12m (anything else: the whole history).
+
+    For an HTMX request (the period changed) only the summary fragment is rendered.
+    """
     selected = next((option for option in Period if option.value == period), Period.ALL)
     summary = costs_service.car_cost_summary(db, car, selected)
     categories = [
@@ -114,7 +120,7 @@ def car_costs(
     ]
     return render(
         request,
-        "cars/costs.html",
+        "cars/_costs_summary.html" if is_htmx(request) else "cars/costs.html",
         {
             "user": user,
             "car": car,

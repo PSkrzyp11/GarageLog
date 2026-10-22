@@ -4,9 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}GarageLog{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ static_url(request, 'favicon.svg') }}">
+  <link rel="stylesheet" href="{{ static_url(request, 'css/app.css') }}">
+  {#
+    HTMX settings, allowed by our Content-Security-Policy (no inline scripts or styles):
+    - includeIndicatorStyles: htmx would otherwise add an inline <style>;
+    - allowEval / allowScriptTags: never run code that comes with a response;
+    - historyCacheSize 0: don't keep copies of pages with personal data in localStorage.
+  #}
+  <meta name="htmx-config"
+        content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "historyCacheSize": 0}'>
+  <script src="{{ static_url(request, 'js/htmx.min.js') }}" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#content">Przejdź do treści</a>
+
   <header class="site-header">
     <div class="container header-inner">
       <a class="brand" href="{{ url_for('dashboard') }}">GarageLog</a>
@@ -25,7 +37,7 @@
     </div>
   </header>
 
-  <main class="container">
+  <main class="container" id="content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 

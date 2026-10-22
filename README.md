@@ -2,7 +2,7 @@
 
 Aplikacja webowa do prowadzenia historii serwisowej samochodów i analizowania kosztów ich utrzymania.
 
-> Projekt w budowie — obecnie etap 9 (eksport CSV pod polskiego Excela, z ochroną przed CSV injection).
+> Projekt w budowie — obecnie etap 10 (HTMX, widok mobilny, dostępność, wersjonowanie plików statycznych).
 
 ## Stack
 
@@ -52,6 +52,14 @@ Wygenerowaną migrację zawsze trzeba przejrzeć przed commitem.
   `Referrer-Policy`.
 
 Szczegóły i uzasadnienia: [`app/security.py`](app/security.py).
+
+## Interfejs
+
+Strony są renderowane na serwerze (Jinja2) i działają bez JavaScriptu. [HTMX](https://htmx.org)
+2.0.11 tylko je usprawnia: filtry historii i okres kosztów odświeżają fragment strony, a
+„wykonane” i usuwanie wpisu działają w miejscu. Plik `app/static/js/htmx.min.js` pochodzi z
+paczki npm `htmx.org@2.0.11` (SHA-256 `d6fdc75f…4000f717`) i jest serwowany z naszej domeny,
+więc Content-Security-Policy nie musi dopuszczać zewnętrznych skryptów.
 
 ## Testy i jakość kodu
 

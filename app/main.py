@@ -1,11 +1,9 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import Settings, get_settings
@@ -13,9 +11,8 @@ from app.db import create_db_engine, create_session_factory
 from app.deps import LoginRequired
 from app.routes import auth, cars, entries, export, pages, reminders
 from app.security import security_middleware, verify_csrf
+from app.static_files import STATIC_DIR, VersionedStaticFiles
 from app.templating import render
-
-STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 ERROR_MESSAGES = {
     404: "Nie znaleziono strony.",
@@ -73,7 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(StarletteHTTPException, render_http_error)
     app.add_exception_handler(RequestValidationError, render_not_found)
 
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", VersionedStaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(pages.router)
     app.include_router(auth.router)
     app.include_router(cars.router)
