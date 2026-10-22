@@ -42,6 +42,8 @@ OWNED_ROUTES = [
     ("GET", "/cars/{car_id}/costs"),
     ("GET", "/cars/{car_id}/export/service.csv"),
     ("GET", "/cars/{car_id}/export/fuel.csv"),
+    ("GET", "/cars/{car_id}/import"),
+    ("POST", "/cars/{car_id}/import"),
     ("GET", "/cars/{car_id}/edit"),
     ("POST", "/cars/{car_id}/edit"),
     ("GET", "/cars/{car_id}/delete"),

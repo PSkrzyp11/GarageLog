@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.deps import LoginRequired
-from app.routes import account, auth, cars, entries, export, pages, reminders
+from app.routes import account, auth, cars, entries, export, importing, pages, reminders
 from app.security import RequestBodyLimitMiddleware, security_middleware, verify_csrf
 from app.static_files import STATIC_DIR, VersionedStaticFiles
 from app.templating import render
@@ -81,5 +81,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(entries.router)
     app.include_router(reminders.router)
     app.include_router(export.router)
+    app.include_router(importing.router)
 
     return app

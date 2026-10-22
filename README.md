@@ -38,7 +38,9 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   danych obok każdego wykresu.
 - **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), także
   cykliczne (np. olej co rok lub 15 000 km), z sekcją „Do zrobienia” na pulpicie.
-- **Eksport CSV** — pod polskiego Excela, odporny na CSV injection.
+- **Eksport i import CSV** — pod polskiego Excela, odporny na CSV injection; wyeksportowane
+  pliki (także poprawione w Excelu) można wczytać do innego auta lub konta — wszystko albo
+  nic, bez dublowania wpisów, które już są.
 - **Kopie zapasowe** — kopia bazy codziennie i jedno polecenie do przywrócenia.
 - **Interfejs** — po polsku, responsywny, działa bez JavaScriptu; HTMX usprawnia filtry
   i akcje w miejscu.
@@ -228,8 +230,8 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Archiwizacja sprzedanego auta, wykres spalania w czasie, import CSV, eksport terminów do
-kalendarza (.ics), paragony także przy serwisie, reset hasła.
+Archiwizacja sprzedanego auta, wykres spalania w czasie, eksport terminów do kalendarza
+(.ics), paragony także przy serwisie, reset hasła.
 
 ## Licencja
 

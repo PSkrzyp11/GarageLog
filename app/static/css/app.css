@@ -183,6 +183,12 @@ input[aria-invalid="true"] {
   border: 1px solid var(--color-error);
 }
 
+.import-errors {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
 .alert-success {
   color: var(--color-success);
   background: var(--color-success-bg);
