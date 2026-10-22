@@ -33,7 +33,7 @@
     {{ csrf_input(request) }}
     <input type="hidden" name="return_to" value="{{ return_to }}">
     {% if reminder.completed_at %}
-      <span class="muted">Wykonane {{ reminder.completed_at.date() | pl_date }}</span>
+      <span class="muted">Wykonane {{ reminder.completed_at | local_date | pl_date }}</span>
       <button type="submit" class="button-link">Przywróć</button>
     {% else %}
       <button type="submit" class="button button-small">Oznacz jako wykonane</button>
