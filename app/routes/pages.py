@@ -1,12 +1,13 @@
 import datetime as dt
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.deps import CurrentUser, DbSession
 from app.services import cars as cars_service
 from app.services import costs as costs_service
 from app.services import reminders as reminders_service
+from app.static_files import static_url
 from app.templating import render
 from app.timeutils import today
 
@@ -27,6 +28,12 @@ def dashboard(request: Request, user: CurrentUser, db: DbSession) -> HTMLRespons
             "urgent_reminders": reminders_service.reminders_needing_attention(db, user),
         },
     )
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+def favicon(request: Request) -> RedirectResponse:
+    """Browsers ask for /favicon.ico on their own; point them at the SVG icon."""
+    return RedirectResponse(static_url(request, "favicon.svg"), status.HTTP_301_MOVED_PERMANENTLY)
 
 
 @router.get("/health")

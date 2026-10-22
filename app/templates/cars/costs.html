@@ -12,7 +12,10 @@
 </div>
 {{ car_tabs(car, "costs") }}
 
-<form method="get" action="{{ url_for('car_costs', car_id=car.id) }}" class="filters">
+{# A plain GET form; with HTMX only the summary below is replaced when the period changes. #}
+<form method="get" action="{{ url_for('car_costs', car_id=car.id) }}" class="filters"
+      hx-get="{{ url_for('car_costs', car_id=car.id) }}" hx-target="#cost-summary"
+      hx-swap="outerHTML" hx-push-url="true" hx-trigger="change, submit">
   <div class="field">
     <label for="period">Okres</label>
     <select id="period" name="period">
@@ -24,116 +27,13 @@
   <button type="submit" class="button button-secondary">Pokaż</button>
 </form>
 
-<p class="muted">
-  {% if summary.start %}Od {{ summary.start | pl_date }} do {{ summary.end | pl_date }}.{% else %}Wszystkie wpisy do {{ summary.end | pl_date }}.{% endif %}
-</p>
-
 <p class="export-links">
   Pobierz całą historię do Excela:
   <a href="{{ url_for('export_service_entries', car_id=car.id) }}">serwis i wydatki (CSV)</a> ·
   <a href="{{ url_for('export_fuel_entries', car_id=car.id) }}">tankowania (CSV)</a>
 </p>
 
-{% if summary.expense_count == 0 %}
-  <section class="card empty-state">
-    <p>Brak wydatków w tym okresie.</p>
-    <p class="muted">Dodaj tankowanie albo wpis serwisowy, a podsumowanie pojawi się tutaj.</p>
-    <a class="button" href="{{ url_for('car_detail', car_id=car.id) }}">Przejdź do historii</a>
-  </section>
-{% else %}
-  <section class="stats">
-    <div class="card stat">
-      <h2>Koszt całkowity</h2>
-      <p class="stat-value">{{ summary.total_pln | pln }}</p>
-      <p class="muted">Liczba wpisów: {{ summary.expense_count }}</p>
-    </div>
-    <div class="card stat">
-      <h2>Paliwo</h2>
-      <p class="stat-value">{{ summary.fuel_pln | pln }}</p>
-      <p class="muted">{{ summary.fuel_share_percent }}% kosztu całkowitego</p>
-    </div>
-    <div class="card stat">
-      <h2>Pozostałe wydatki</h2>
-      <p class="stat-value">{{ summary.other_pln | pln }}</p>
-      <p class="muted">serwis, naprawy, opony, ubezpieczenie…</p>
-    </div>
-    <div class="card stat">
-      <h2>Koszt na kilometr</h2>
-      {% if summary.cost_per_km_pln is not none %}
-        <p class="stat-value">{{ summary.cost_per_km_pln | pln }}/km</p>
-        <p class="muted">Średnio na {{ summary.distance_km | km }}.</p>
-      {% else %}
-        <p class="stat-value stat-missing">Za mało danych</p>
-        <p class="muted">{{ summary.cost_per_km_reason }}</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Podział na kategorie</h2>
-    <table class="cost-table">
-      <thead>
-        <tr><th scope="col">Kategoria</th><th scope="col">Kwota</th><th scope="col">Udział</th></tr>
-      </thead>
-      <tbody>
-        {% for label, amount, share in categories %}
-          <tr>
-            <th scope="row">{{ label }}</th>
-            <td>{{ amount | pln }}</td>
-            <td>
-              <progress max="100" value="{{ share }}" aria-hidden="true"></progress>
-              {{ share }}%
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-{% endif %}
-
-{% if consumption.by_fuel %}
-  <section class="consumption">
-    <h2>Spalanie</h2>
-    {% if consumption.fuel_cost_per_km_pln is not none and consumption.by_fuel | length > 1 %}
-      <p>Paliwo razem: <strong>{{ consumption.fuel_cost_per_km_pln | pln }}/km</strong></p>
-    {% endif %}
-
-    <div class="stats">
-      {% for fuel in consumption.by_fuel %}
-        <div class="card stat">
-          <h3>{{ fuel_labels[fuel.fuel_type] }}</h3>
-          {% if fuel.liters_per_100km is not none %}
-            <p class="stat-value">{{ fuel.liters_per_100km | per_100km }}</p>
-            <p>Paliwo: {{ fuel.cost_per_km_pln | pln }}/km</p>
-            {% set count = fuel.segments | length %}
-            <p class="muted">{{ fuel.liters | liters }} na {{ fuel.distance_km | km }} ({{ count }} {{ count | plural("odcinek", "odcinki", "odcinków") }})</p>
-            <details>
-              <summary>Z czego to wynika</summary>
-              <table class="cost-table segments">
-                <thead>
-                  <tr><th scope="col">Od – do</th><th scope="col">Km</th><th scope="col">Litry</th><th scope="col">Spalanie</th></tr>
-                </thead>
-                <tbody>
-                  {% for segment in fuel.segments %}
-                    <tr>
-                      <td>{{ segment.start.date | pl_date }} – {{ segment.end.date | pl_date }}</td>
-                      <td>{{ segment.distance_km | km }}</td>
-                      <td>{{ segment.liters | liters }}</td>
-                      <td>{{ segment.liters_per_100km | per_100km }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </details>
-          {% else %}
-            <p class="stat-value stat-missing">Za mało danych</p>
-            <p class="muted">{{ fuel.reason }}</p>
-          {% endif %}
-        </div>
-      {% endfor %}
-    </div>
-  </section>
-{% endif %}
+{% include "cars/_costs_summary.html" %}
 
 <section class="notes muted">
   <h2>Jak liczymy</h2>

@@ -16,8 +16,10 @@
     {% if view.due_parts %}<span class="muted">({{ view.due_parts | join(", ") }})</span>{% endif %}
   </p>
   {% if reminder.notes %}<p class="muted timeline-notes">{{ reminder.notes }}</p>{% endif %}
-  <form method="post" class="inline-form"
-        action="{{ url_for('reopen_reminder' if reminder.completed_at else 'complete_reminder', car_id=view.car.id, reminder_id=reminder.id) }}">
+  {% set action_url = url_for('reopen_reminder' if reminder.completed_at else 'complete_reminder', car_id=view.car.id, reminder_id=reminder.id) %}
+  {# Without HTMX the page reloads; with HTMX only this card is replaced. #}
+  <form method="post" class="inline-form" action="{{ action_url }}"
+        hx-post="{{ action_url }}" hx-target="closest li" hx-swap="outerHTML">
     {{ csrf_input(request) }}
     <input type="hidden" name="return_to" value="{{ return_to }}">
     {% if reminder.completed_at %}

@@ -18,7 +18,7 @@
 
   <dl class="facts">
     <dt>Aktualny przebieg</dt>
-    <dd>{% if odometer_km is not none %}{{ odometer_km | km }}{% else %}Brak danych{% endif %}</dd>
+    {% include "cars/_odometer.html" %}
   </dl>
 
   <div class="form-actions entry-actions">
@@ -32,7 +32,13 @@
   <h2>Historia</h2>
 
   {% if has_entries %}
-    <form method="get" action="{{ url_for('car_detail', car_id=car.id) }}" class="filters">
+    {#
+      A plain GET form. With HTMX it updates only the list as soon as a filter changes,
+      and the URL (?kind=…&year=…) still changes, so the view can be bookmarked.
+    #}
+    <form method="get" action="{{ url_for('car_detail', car_id=car.id) }}" class="filters"
+          hx-get="{{ url_for('car_detail', car_id=car.id) }}" hx-target="#timeline"
+          hx-swap="outerHTML" hx-push-url="true" hx-trigger="change, submit">
       <div class="field">
         <label for="kind">Rodzaj</label>
         <select id="kind" name="kind">
@@ -55,38 +61,7 @@
     </form>
   {% endif %}
 
-  {% if timeline %}
-    <ol class="timeline">
-      {% for item in timeline %}
-        {% if item.kind == "service" %}
-          {% set edit_url = url_for('edit_service_entry_page', car_id=car.id, entry_id=item.id) %}
-        {% elif item.kind == "fuel" %}
-          {% set edit_url = url_for('edit_fuel_entry_page', car_id=car.id, fuel_id=item.id) %}
-        {% else %}
-          {% set edit_url = url_for('edit_reading_page', car_id=car.id, reading_id=item.id) %}
-        {% endif %}
-        <li class="card timeline-item timeline-{{ item.kind }}">
-          <div class="timeline-meta">
-            <time datetime="{{ item.date.isoformat() }}">{{ item.date | pl_date }}</time>
-            <span class="badge">{{ item.badge }}</span>
-          </div>
-          <div class="timeline-main">
-            <h3><a href="{{ edit_url }}">{{ item.title }}</a></h3>
-            {% if item.details %}<p class="timeline-details">{{ item.details }}</p>{% endif %}
-            {% if item.notes %}<p class="muted timeline-notes">{{ item.notes }}</p>{% endif %}
-          </div>
-          <div class="timeline-numbers">
-            {% if item.cost_pln is not none %}<span class="timeline-cost">{{ item.cost_pln | pln }}</span>{% endif %}
-            {% if item.odometer_km is not none %}<span class="muted">{{ item.odometer_km | km }}</span>{% endif %}
-          </div>
-        </li>
-      {% endfor %}
-    </ol>
-  {% elif has_entries %}
-    <p class="card muted">Brak wpisów dla wybranych filtrów.</p>
-  {% else %}
-    <p class="card muted">Nie ma jeszcze żadnych wpisów. Dodaj pierwszy wydatek albo odczyt licznika.</p>
-  {% endif %}
+  {% include "cars/_timeline.html" %}
 </section>
 
 <p class="danger-zone">
