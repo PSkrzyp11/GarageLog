@@ -15,6 +15,7 @@ from fastapi import HTTPException, Request, Response, status
 from markupsafe import Markup
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.csv_import import MAX_CSV_BYTES
 from app.receipts import MAX_RECEIPT_BYTES
 
 SESSION_COOKIE = "session"
@@ -43,9 +44,12 @@ HSTS_HEADER = "max-age=31536000"
 
 # The largest form (a 2 000-character note in Polish, URL-encoded) is about 20 KB.
 MAX_REQUEST_BODY_BYTES = 64 * 1024
-# Only the refuel forms may carry a file (a receipt), so only they get a larger limit.
-UPLOAD_PATHS = re.compile(r"/cars/\d+/fuel/(new|\d+/edit)")
-MAX_UPLOAD_REQUEST_BYTES = MAX_RECEIPT_BYTES + MAX_REQUEST_BODY_BYTES
+# Only the forms that carry a file get a larger limit: the refuel forms (a receipt) and the
+# CSV import.
+UPLOAD_LIMITS = [
+    (re.compile(r"/cars/\d+/fuel/(new|\d+/edit)"), MAX_RECEIPT_BYTES + MAX_REQUEST_BODY_BYTES),
+    (re.compile(r"/cars/\d+/import"), 2 * MAX_CSV_BYTES + MAX_REQUEST_BODY_BYTES),  # two files
+]
 
 # --- Passwords --------------------------------------------------------------------------
 
@@ -230,10 +234,9 @@ class RequestBodyLimitMiddleware:
             return
 
         received = 0
-        limit = (
-            MAX_UPLOAD_REQUEST_BYTES
-            if UPLOAD_PATHS.fullmatch(scope["path"])
-            else MAX_REQUEST_BODY_BYTES
+        limit = next(
+            (limit for path, limit in UPLOAD_LIMITS if path.fullmatch(scope["path"])),
+            MAX_REQUEST_BODY_BYTES,
         )
 
         async def limited_receive() -> Message:

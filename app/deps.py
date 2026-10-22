@@ -48,6 +48,18 @@ async def get_uploaded_receipt(request: Request) -> bytes | None:
 ReceiptUpload = Annotated[bytes | None, Depends(get_uploaded_receipt)]
 
 
+async def get_uploaded_files(request: Request) -> list[tuple[str, bytes]]:
+    """(name, content) of every file chosen in the form's "files" field (CSV import)."""
+    files = []
+    for upload in (await request.form()).getlist("files"):
+        if isinstance(upload, UploadFile) and upload.filename:
+            files.append((upload.filename, await upload.read()))
+    return files
+
+
+UploadedFiles = Annotated[list[tuple[str, bytes]], Depends(get_uploaded_files)]
+
+
 class LoginRequired(Exception):
     """Raised for anonymous requests to pages that need a user; handled as a redirect."""
 

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Import z CSV — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('car_detail', car_id=car.id) }}">← {{ car.name }}</a></p>
+
+<section class="card form-card">
+  <h1>Import z CSV</h1>
+  <p>Wczytaj pliki z eksportu GarageLog: <strong>tankowania</strong> i/lub
+    <strong>serwis i wydatki</strong> — także po edycji i zapisaniu w Excelu.</p>
+  <ul class="muted">
+    <li>Każdy wiersz jest sprawdzany jak wpis dodany ręcznie (daty, kwoty, paliwo auta, przebieg).</li>
+    <li>Jeśli którykolwiek wiersz ma błąd, nic nie zostanie zapisane — popraw plik i spróbuj ponownie.</li>
+    <li>Wpisy, które to auto już ma, są pomijane, więc ten sam plik można wczytać drugi raz.</li>
+  </ul>
+
+  {% if message %}
+    <div class="alert alert-error" role="alert">{{ message }}</div>
+  {% elif report and report.errors %}
+    <div class="alert alert-error" role="alert">
+      <p><strong>Nic nie zostało zapisane.</strong> Popraw te miejsca w pliku:</p>
+      <ul class="import-errors">
+        {% for error in report.errors[:max_errors] %}<li>{{ error }}</li>{% endfor %}
+      </ul>
+      {% if report.errors | length > max_errors %}
+        <p>…i {{ report.errors | length - max_errors }} więcej.</p>
+      {% endif %}
+    </div>
+  {% elif report %}
+    <div class="alert alert-success" role="status">
+      Zaimportowano: tankowania — {{ report.fuel_added }}, serwis i wydatki — {{ report.service_added }}.
+      {% if report.duplicates_skipped %}Pominięte, bo już były: {{ report.duplicates_skipped }}.{% endif %}
+      <a href="{{ url_for('car_detail', car_id=car.id) }}">Zobacz historię auta</a>
+    </div>
+  {% endif %}
+
+  <form method="post" class="form" enctype="multipart/form-data"
+        action="{{ url_for('import_files', car_id=car.id) }}">
+    {{ csrf_input(request) }}
+    <div class="field">
+      <label for="files">Pliki CSV</label>
+      <input id="files" name="files" type="file" accept=".csv,text/csv" multiple required
+             aria-describedby="files-help">
+      <p class="field-hint" id="files-help">Można wybrać oba pliki naraz, każdy do 2 MB.</p>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="button">Importuj</button>
+      <a href="{{ url_for('car_detail', car_id=car.id) }}">Anuluj</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
