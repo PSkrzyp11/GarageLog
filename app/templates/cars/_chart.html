@@ -1,0 +1,28 @@
+{#
+  One chart: a <canvas> drawn by app/static/js/charts.js from the JSON in data-chart, and the
+  same data as a table. Without JavaScript the canvas stays hidden and the table remains.
+#}
+{% macro chart(chart, title, description) %}
+<figure class="card chart-card">
+  <figcaption>{{ title }}</figcaption>
+  <div class="chart-box" hidden>
+    <canvas data-chart="{{ chart.payload | tojson | forceescape }}" role="img"
+            aria-label="{{ description }} Dokładne wartości są w tabeli „Dane wykresu”."></canvas>
+  </div>
+  <details class="chart-data">
+    <summary>Dane wykresu</summary>
+    <div class="table-scroll">
+      <table class="cost-table">
+        <thead>
+          <tr>{% for header in chart.headers %}<th scope="col">{{ header }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+          {% for row in chart.rows %}
+            <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+</figure>
+{% endmacro %}

@@ -2,6 +2,7 @@
   Totals and consumption for the selected period. Part of the costs page, and returned on
   its own when the period changes with HTMX (the whole <div id="cost-summary"> is swapped).
 #}
+{% from "cars/_chart.html" import chart %}
 <div id="cost-summary" aria-live="polite">
 <p class="muted">
   {% if summary.start %}Od {{ summary.start | pl_date }} do {{ summary.end | pl_date }}.{% else %}Wszystkie wpisy do {{ summary.end | pl_date }}.{% endif %}
@@ -61,6 +62,17 @@
         {% endfor %}
       </tbody>
     </table>
+  </section>
+
+  <section class="charts">
+    {% if charts.monthly %}
+      {{ chart(charts.monthly, "Wydatki miesięczne",
+               "Wykres słupkowy wydatków w kolejnych miesiącach, z podziałem na paliwo i pozostałe wydatki.") }}
+    {% endif %}
+    {% if charts.fuel_prices %}
+      {{ chart(charts.fuel_prices, "Cena paliwa",
+               "Wykres liniowy ceny za litr przy kolejnych tankowaniach, osobno dla każdego paliwa.") }}
+    {% endif %}
   </section>
 {% endif %}
 

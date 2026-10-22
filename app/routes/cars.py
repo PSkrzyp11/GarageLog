@@ -127,6 +127,7 @@ def car_costs(
             "summary": summary,
             "categories": categories,
             "consumption": costs_service.car_consumption(db, car, selected),
+            "charts": costs_service.car_charts(db, car, selected),
             "fuel_labels": {fuel.value: fuel.label for fuel in FuelType},
             "periods": list(Period),
             "min_distance_km": MIN_DISTANCE_KM,

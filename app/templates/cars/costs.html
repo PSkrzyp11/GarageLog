@@ -4,6 +4,12 @@
 
 {% block title %}Koszty — {{ car.name }} — GarageLog{% endblock %}
 
+{% block scripts %}
+  {# Chart.js 4.5.1 (npm "chart.js", MIT), served from our own origin like htmx. #}
+  <script src="{{ static_url(request, 'js/chart.umd.min.js') }}" defer></script>
+  <script src="{{ static_url(request, 'js/charts.js') }}" defer></script>
+{% endblock %}
+
 {% block content %}
 <p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
 

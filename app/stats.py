@@ -438,3 +438,69 @@ def describe_due(state: ReminderState) -> list[str]:
         else:
             parts.append(f"{format_km(-state.km_left)} po terminie")
     return parts
+
+
+# --- Chart data -------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MonthCost:
+    month: dt.date  # first day of the month
+    fuel_pln: Decimal
+    other_pln: Decimal
+
+
+def _month_start(day: dt.date) -> dt.date:
+    return day.replace(day=1)
+
+
+def _next_month(month: dt.date) -> dt.date:
+    return (month.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
+
+
+def monthly_costs(expenses: Iterable[Expense], period: Period, today: dt.date) -> list[MonthCost]:
+    """Fuel and other costs per calendar month of the period, oldest first.
+
+    Months without expenses are included as zeros, so the chart's time axis has no gaps.
+    The whole history starts at the month of the first expense.
+    """
+    start, end = period_range(period, today)
+    in_period = [e for e in expenses if _in_range(e.date, start, end)]
+    if not in_period:
+        return []
+
+    first = _month_start(start) if start else _month_start(min(e.date for e in in_period))
+    fuel: dict[dt.date, Decimal] = defaultdict(Decimal)
+    other: dict[dt.date, Decimal] = defaultdict(Decimal)
+    for expense in in_period:
+        target = fuel if expense.category == FUEL else other
+        target[_month_start(expense.date)] += expense.amount_pln
+
+    months = []
+    month = first
+    while month <= _month_start(end):
+        months.append(MonthCost(month, fuel[month], other[month]))
+        month = _next_month(month)
+    return months
+
+
+@dataclass(frozen=True)
+class FuelPrice:
+    date: dt.date
+    price_per_liter_pln: Decimal
+
+
+def fuel_prices(
+    refuels: Iterable[Refuel], period: Period, today: dt.date
+) -> dict[str, list[FuelPrice]]:
+    """Price per litre of each refuel in the period, per fuel type, oldest first.
+
+    The price is derived from the receipt (cost ÷ litres); it is never stored.
+    """
+    start, end = period_range(period, today)
+    by_fuel: dict[str, list[FuelPrice]] = defaultdict(list)
+    for refuel in sorted(refuels, key=lambda r: (r.date, r.odometer_km, r.id)):
+        if _in_range(refuel.date, start, end):
+            price = _grosze(refuel.cost_pln / refuel.liters)
+            by_fuel[refuel.fuel_type].append(FuelPrice(refuel.date, price))
+    return {fuel: by_fuel[fuel] for fuel in FUEL_TYPE_ORDER if fuel in by_fuel}

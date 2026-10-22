@@ -1,3 +1,7 @@
+import html
+import json
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -183,3 +187,62 @@ def test_lpg_car_shows_each_fuel_and_their_combined_cost(client: TestClient) -> 
     assert section.index("Benzyna") < section.index("LPG")
     # 135 zł / 500 km + 40 zł / 1000 km = 0.27 + 0.04
     assert "Paliwo razem: <strong>0,31 zł/km</strong>" in section
+
+
+# --- Charts -----------------------------------------------------------------------------
+
+CHART_ATTRIBUTE = re.compile(r'data-chart="([^"]+)"')
+
+
+def charts_on(page: str) -> list[dict]:
+    return [json.loads(html.unescape(found)) for found in CHART_ATTRIBUTE.findall(page)]
+
+
+def test_costs_page_has_monthly_and_fuel_price_charts(client: TestClient, car_id: int) -> None:
+    year = today().year
+    add_fuel_entry(
+        client,
+        car_id,
+        date=f"{year}-01-10",
+        odometer_km="110000",
+        liters="40",
+        total_cost_pln="260",
+    )
+    add_service_entry(client, car_id, date=f"{year}-01-20", cost_pln="1 200", category="insurance")
+
+    page = costs_page(client, car_id, "year")
+    monthly, prices = charts_on(page)
+
+    assert monthly["kind"] == "stacked-bar"
+    assert monthly["labels"][0] == f"sty {year}"
+    assert monthly["series"][0]["values"][0] == 260.0  # fuel in January
+    assert monthly["series"][1]["values"][0] == 1200.0  # other in January
+    assert prices["kind"] == "line"
+    assert prices["series"][0]["label"] == "Benzyna"
+    assert prices["series"][0]["values"] == [6.5]
+    # The same numbers as a table, for screen readers and browsers without JavaScript.
+    assert "Dane wykresu" in page
+    assert "6,50 zł/l" in page
+
+
+def test_chart_scripts_are_loaded_only_on_the_costs_page(client: TestClient, car_id: int) -> None:
+    add_fuel_entry(client, car_id)
+
+    costs = costs_page(client, car_id)
+    history = client.get(f"/cars/{car_id}").text
+
+    assert "/static/js/chart.umd.min.js?v=" in costs
+    assert "/static/js/charts.js?v=" in costs
+    assert "chart.umd.min.js" not in history
+
+
+def test_no_charts_without_expenses(client: TestClient, car_id: int) -> None:
+    assert charts_on(costs_page(client, car_id)) == []
+
+
+def test_period_fragment_for_htmx_includes_the_charts(client: TestClient, car_id: int) -> None:
+    add_fuel_entry(client, car_id, date=today().isoformat(), odometer_km="120100")
+
+    fragment = client.get(f"/cars/{car_id}/costs?period=year", headers={"HX-Request": "true"}).text
+
+    assert len(charts_on(fragment)) == 2
