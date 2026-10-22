@@ -5,7 +5,7 @@
 #                   BACKUP_KEEP_DAYS are deleted (only after a successful dump)
 #   once            a single dump now:  docker compose run --rm backup once
 #   restore FILE    replace the database with a dump from the backup folder:
-#                   docker compose run --rm backup restore garagelog-2026-10-22_2100.dump
+#                   docker compose run --rm backup restore garagelog-2026-10-22_210000.dump
 #
 # The connection comes from the standard PG* variables (PGHOST, PGUSER, ...).
 set -u
@@ -13,7 +13,13 @@ set -u
 BACKUP_DIR=/backups
 
 dump() {
-    file="$BACKUP_DIR/garagelog-$(date +%Y-%m-%d_%H%M).dump"
+    # Seconds in the name, and never an existing name: two dumps started close together
+    # (e.g. a manual one and the one at container start) must not replace each other.
+    file="$BACKUP_DIR/garagelog-$(date +%Y-%m-%d_%H%M%S).dump"
+    while [ -e "$file" ] || [ -e "$file.partial" ]; do
+        sleep 1
+        file="$BACKUP_DIR/garagelog-$(date +%Y-%m-%d_%H%M%S).dump"
+    done
     # Written under a temporary name, so a half-written file never looks like a backup.
     if pg_dump --format=custom --file="$file.partial"; then
         mv "$file.partial" "$file"

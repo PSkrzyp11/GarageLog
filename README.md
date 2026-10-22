@@ -83,7 +83,7 @@ docker compose run --rm backup once        # kopia teraz
 # Przywrócenie: cała baza zostaje zastąpiona kopią (w jednej transakcji — przy błędzie
 # nic się nie zmienia). Aplikacja na ten czas jest zatrzymana.
 docker compose stop app
-docker compose run --rm backup restore garagelog-2026-10-22_2100.dump
+docker compose run --rm backup restore garagelog-2026-10-22_210000.dump
 docker compose start app
 ```
 
