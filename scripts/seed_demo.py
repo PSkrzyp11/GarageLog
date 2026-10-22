@@ -270,6 +270,8 @@ def seed(db: Session, password: str, today: dt.date | None = None) -> User:
                 title="Wymiana oleju i filtrów",
                 due_odometer_km=octavia_km + 600,
                 due_date=today + dt.timedelta(days=150),
+                repeat_months=12,
+                repeat_km=15_000,
             ),
             # Planned.
             Reminder(
@@ -283,6 +285,7 @@ def seed(db: Session, password: str, today: dt.date | None = None) -> User:
                 car_id=astra.id,
                 title="Badanie techniczne z LPG",
                 due_date=today + dt.timedelta(days=18),
+                repeat_months=12,
             ),
             Reminder(
                 car_id=astra.id,

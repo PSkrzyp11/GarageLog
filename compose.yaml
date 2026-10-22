@@ -29,5 +29,25 @@ services:
       db:
         condition: service_healthy
 
+  # A database dump every day into ./backups (or BACKUP_DIR); see scripts/backup.sh.
+  # Same image as the database, so pg_dump matches the server version.
+  backup:
+    image: postgres:18
+    entrypoint: ["sh", "/usr/local/bin/backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-garagelog}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-garagelog}
+      PGDATABASE: ${POSTGRES_DB:-garagelog}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+      TZ: Europe/Warsaw  # file names use the local date and time
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db-data:

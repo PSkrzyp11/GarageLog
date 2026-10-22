@@ -251,6 +251,8 @@ class Reminder(Base):
             "due_date IS NOT NULL OR due_odometer_km IS NOT NULL", name="has_due_condition"
         ),
         CheckConstraint("due_odometer_km >= 0", name="due_odometer_km_non_negative"),
+        CheckConstraint("repeat_months BETWEEN 1 AND 120", name="repeat_months_range"),
+        CheckConstraint("repeat_km > 0", name="repeat_km_positive"),
         # Active reminders of a car: WHERE car_id = ? AND completed_at IS NULL.
         Index("ix_reminders_car_id_completed_at", "car_id", "completed_at"),
     )
@@ -261,6 +263,14 @@ class Reminder(Base):
     due_date: Mapped[dt.date | None] = mapped_column(Date)
     due_odometer_km: Mapped[int | None]
     notes: Mapped[str | None] = mapped_column(Text)
+    # Recurring reminder: marking it as done creates the next one, due this many months
+    # and/or kilometres after the day and mileage it was done at.
+    repeat_months: Mapped[int | None]
+    repeat_km: Mapped[int | None]
+    # The reminder whose completion created this one; undoing that completion deletes it.
+    created_from_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reminders.id", ondelete="SET NULL")
+    )
     # Set when marked as done; the status (overdue, due soon…) is calculated, never stored.
     completed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[dt.datetime] = mapped_column(

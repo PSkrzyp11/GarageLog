@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.formatting import format_km
 from app.models import Reminder, ServiceEntry
 from app.timeutils import today
 from tests.integration.helpers import (
@@ -89,6 +90,22 @@ def test_marking_a_reminder_done_returns_the_updated_card(
     reminder = db_session.get(Reminder, reminder_id)
     db_session.refresh(reminder)
     assert reminder.completed_at is not None
+
+
+def test_completing_a_recurring_reminder_mentions_the_next_one(
+    client: TestClient, car_id: int
+) -> None:
+    reminder_id = add_reminder(
+        client, car_id, title="Olej", due_date="", due_odometer_km="125000", repeat_km="15000"
+    )
+
+    fragment = htmx_post(
+        client,
+        f"/cars/{car_id}/reminders/{reminder_id}/complete",
+        form_page=f"/cars/{car_id}/reminders",
+    )
+
+    assert f"Następne przypomnienie: do {format_km(135_000)}" in fragment
 
 
 def test_dashboard_card_keeps_the_car_name_and_returns_to_the_dashboard(

@@ -2,9 +2,12 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.formatting import format_km
 from app.models import Reminder
+from app.stats import add_months
 from app.timeutils import today
 from tests.integration.helpers import (
     add_car,
@@ -162,3 +165,104 @@ def test_deleting_car_removes_its_reminders(
     post_form(client, url, {}, url)
 
     assert count(db_session, Reminder) == 0
+
+
+# --- Recurring reminders ----------------------------------------------------------------
+
+
+def complete(client: TestClient, car_id: int, reminder_id: int) -> None:
+    url = f"/cars/{car_id}/reminders/{reminder_id}/complete"
+    assert post_form(client, url, {}, form_page=f"/cars/{car_id}/reminders").status_code == 303
+
+
+def reopen(client: TestClient, car_id: int, reminder_id: int) -> None:
+    url = f"/cars/{car_id}/reminders/{reminder_id}/reopen"
+    assert post_form(client, url, {}, form_page=f"/cars/{car_id}/reminders").status_code == 303
+
+
+def next_occurrence(db: Session, reminder_id: int) -> Reminder:
+    return db.scalars(select(Reminder).where(Reminder.created_from_id == reminder_id)).one()
+
+
+def test_recurring_reminder_shows_how_it_repeats(client: TestClient, car_id: int) -> None:
+    add_reminder(client, car_id, repeat_months="12", repeat_km="15 000")
+
+    assert f"Powtarza się co rok lub {format_km(15_000)}" in reminders_page(client, car_id)
+
+
+def test_completing_a_recurring_reminder_creates_the_next_one(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    # Done 3 days late: the next one counts from today and the current 120 000 km.
+    reminder_id = add_reminder(
+        client, car_id, title="Olej", due_date=in_days(-3), repeat_months="12", repeat_km="15000"
+    )
+
+    complete(client, car_id, reminder_id)
+
+    following = next_occurrence(db_session, reminder_id)
+    assert following.title == "Olej"
+    assert following.due_date == add_months(today(), 12)
+    assert following.due_odometer_km == 135_000
+    assert (following.repeat_months, following.repeat_km) == (12, 15_000)
+    assert following.completed_at is None
+    page = reminders_page(client, car_id)
+    assert f"do {following.due_date.strftime('%d.%m.%Y')} lub do {format_km(135_000)}" in page
+    assert "Ostatnio wykonane" in page
+
+
+def test_completing_twice_creates_only_one_next_occurrence(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    reminder_id = add_reminder(client, car_id, repeat_months="12")
+
+    complete(client, car_id, reminder_id)
+    complete(client, car_id, reminder_id)  # e.g. a double click without JavaScript
+
+    assert count(db_session, Reminder) == 2
+
+
+def test_completing_a_one_off_reminder_creates_nothing(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    reminder_id = add_reminder(client, car_id)
+
+    complete(client, car_id, reminder_id)
+
+    assert count(db_session, Reminder) == 1
+
+
+def test_reopening_removes_the_next_occurrence(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    reminder_id = add_reminder(client, car_id, repeat_months="12")
+    complete(client, car_id, reminder_id)
+
+    reopen(client, car_id, reminder_id)
+
+    assert count(db_session, Reminder) == 1
+    reminder = db_session.get(Reminder, reminder_id)
+    db_session.refresh(reminder)
+    assert reminder.completed_at is None
+
+
+def test_reopening_keeps_a_next_occurrence_that_was_already_done(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    first_id = add_reminder(client, car_id, repeat_months="12")
+    complete(client, car_id, first_id)
+    complete(client, car_id, next_occurrence(db_session, first_id).id)
+
+    reopen(client, car_id, first_id)
+
+    # The first one is active again; the second stays done, with its own next occurrence.
+    assert count(db_session, Reminder) == 3
+
+
+def test_edit_form_keeps_the_repeat_interval(client: TestClient, car_id: int) -> None:
+    reminder_id = add_reminder(client, car_id, repeat_months="6", repeat_km="10000")
+
+    page = client.get(f"/cars/{car_id}/reminders/{reminder_id}/edit").text
+
+    assert 'name="repeat_months"' in page and 'value="6"' in page
+    assert 'value="10000"' in page

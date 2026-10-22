@@ -23,6 +23,7 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     U->>M: POST /cars/7/fuel/new (formularz + csrf_token)
+    Note over M: treść powyżej 64 KB → 413
     M->>D: verify_csrf — token z ciasteczka = token z formularza, podpis HMAC, ta sama sesja
     D->>DB: sesja z ciasteczka (skrót SHA-256) → użytkownik
     D->>DB: get_owned_car: WHERE id = 7 AND user_id = :użytkownik
@@ -47,6 +48,7 @@ erDiagram
     cars ||--o{ service_entries : "ma"
     cars ||--o{ fuel_entries : "ma"
     cars ||--o{ reminders : "ma"
+    reminders |o--o| reminders : "następne (cykliczne)"
 
     users {
         int id PK
@@ -96,12 +98,16 @@ erDiagram
         int car_id FK
         date due_date "data i/lub przebieg (CHECK)"
         int due_odometer_km
+        int repeat_months "opcjonalnie, 1–120"
+        int repeat_km "opcjonalnie"
+        int created_from_id FK "z którego powstało"
         timestamptz completed_at
     }
 ```
 
-Wszystkie relacje mają `ON DELETE CASCADE` w bazie: usunięcie auta usuwa jego historię,
-usunięcie konta — wszystko. Nie ma kolumn z sumami ani aktualnym przebiegiem: wszystkie
+Relacje z rodzicem mają `ON DELETE CASCADE` w bazie: usunięcie auta usuwa jego historię,
+usunięcie konta — wszystko. Wyjątek to `reminders.created_from_id` (`SET NULL`): usunięcie
+starego przypomnienia nie usuwa następnego ([ADR 0008](decisions/0008-recurring-reminders.md)). Nie ma kolumn z sumami ani aktualnym przebiegiem: wszystkie
 podsumowania są liczone przy odczycie ([ADR 0003](decisions/0003-derived-odometer.md)).
 
 ## Uruchamianie
@@ -111,7 +117,11 @@ flowchart LR
     B[Przeglądarka] -->|HTTP, 127.0.0.1:8000| A[kontener app<br/>uvicorn + FastAPI]
     A -->|psycopg| P[(kontener db<br/>PostgreSQL 18)]
     A -. "przy starcie:<br/>alembic upgrade head" .-> P
+    K[kontener backup<br/>pg_dump co 24 h] -->|pg_dump| P
+    K --> F[(folder ./backups<br/>lub BACKUP_DIR)]
 ```
 
-`docker compose up` uruchamia oba kontenery; aplikacja startuje dopiero, gdy baza zgłosi
-gotowość, i przed startem wykonuje migracje. Porty są dostępne tylko z `127.0.0.1`.
+`docker compose up` uruchamia wszystkie kontenery; aplikacja startuje dopiero, gdy baza
+zgłosi gotowość, i przed startem wykonuje migracje. Porty są dostępne tylko z `127.0.0.1`.
+Kontener `backup` robi kopię bazy przy starcie i potem co 24 godziny
+(`scripts/backup.sh`); szczegóły w README.

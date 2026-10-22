@@ -34,6 +34,20 @@
     {{ forms.textarea("notes", "Notatki", value=values.get("notes", ""), error=errors.get("notes"),
                       maxlength=2000) }}
 
+    <fieldset class="fieldset">
+      <legend>Powtarzanie <span class="muted">(opcjonalnie)</span></legend>
+      <p class="field-hint">Po oznaczeniu jako wykonane powstanie następne przypomnienie, liczone
+        od dnia wykonania i aktualnego przebiegu — np. olej co 12 miesięcy lub 15 000 km.</p>
+      <div class="form-row">
+        {{ forms.field("repeat_months", "Co ile miesięcy", value=values.get("repeat_months", ""),
+                       error=errors.get("repeat_months"), required=False,
+                       attrs={"inputmode": "numeric"}) }}
+        {{ forms.field("repeat_km", "Co ile kilometrów", value=values.get("repeat_km", ""),
+                       error=errors.get("repeat_km"), required=False,
+                       attrs={"inputmode": "numeric"}) }}
+      </div>
+    </fieldset>
+
     <div class="form-actions">
       <button type="submit" class="button">{{ "Dodaj przypomnienie" if is_new else "Zapisz zmiany" }}</button>
       <a href="{{ url_for('car_reminders', car_id=car.id) }}">Anuluj</a>
