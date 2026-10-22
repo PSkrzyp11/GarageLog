@@ -17,6 +17,7 @@ from app.formatting import (
 from app.models import Car
 from app.security import csrf_input
 from app.static_files import static_url
+from app.timeutils import local_date
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -52,6 +53,7 @@ templates.env.globals["static_url"] = static_url
 templates.env.filters["km"] = format_km
 templates.env.filters["pln"] = format_pln
 templates.env.filters["pl_date"] = format_date
+templates.env.filters["local_date"] = local_date
 templates.env.filters["liters"] = format_liters
 templates.env.filters["per_100km"] = format_consumption
 templates.env.filters["plural"] = plural
