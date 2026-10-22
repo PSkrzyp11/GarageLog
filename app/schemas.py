@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from decimal import Decimal
 
 from email_validator import EmailNotValidError, validate_email
-from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
+from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator, model_validator
 
 from app.formatting import format_date
 from app.models import FuelType, PrimaryFuel, ServiceCategory
@@ -372,3 +372,59 @@ class FuelEntryForm(BaseModel):
     @classmethod
     def parse_checkbox(cls, value: object) -> object:
         return value == "on" if isinstance(value, str) else value
+
+
+# --- Reminders --------------------------------------------------------------------------
+
+LATEST_DUE_DATE = dt.date(2100, 12, 31)
+
+
+def parse_optional_due_date(value: object) -> object:
+    """A due date may be in the future (that's the point) or in the past (already overdue)."""
+    if not isinstance(value, str):
+        return value
+    if not value.strip():
+        return None
+    try:
+        parsed = dt.date.fromisoformat(value.strip())
+    except ValueError:
+        raise ValueError("Podaj poprawną datę.") from None
+    if not EARLIEST_ENTRY_DATE <= parsed <= LATEST_DUE_DATE:
+        raise ValueError("Podaj datę z zakresu 1950–2100.")
+    return parsed
+
+
+class ReminderForm(BaseModel):
+    title: str
+    due_date: dt.date | None
+    due_odometer_km: int | None
+    notes: str | None
+
+    @field_validator("title")
+    @classmethod
+    def check_title(cls, value: str) -> str:
+        return require(
+            optional_text(value, 120), "Napisz, o czym przypomnieć, np. „Wymiana oleju”."
+        )
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def check_due_date(cls, value: object) -> object:
+        return parse_optional_due_date(value)
+
+    @field_validator("due_odometer_km", mode="before")
+    @classmethod
+    def parse_due_odometer(cls, value: object) -> object:
+        return check_odometer_range(parse_optional_int(value))
+
+    @field_validator("notes", mode="before")
+    @classmethod
+    def check_notes(cls, value: str) -> str | None:
+        return optional_text(value, 2000)
+
+    @model_validator(mode="after")
+    def require_due_condition(self) -> "ReminderForm":
+        # Same rule as the CHECK constraint in the database, with a message for the user.
+        if self.due_date is None and self.due_odometer_km is None:
+            raise ValueError("Podaj termin: datę, przebieg albo oba (liczy się to, co pierwsze).")
+        return self

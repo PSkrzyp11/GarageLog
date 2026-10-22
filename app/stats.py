@@ -332,3 +332,109 @@ def summarize_consumption(
         # Sum the exact values and round once, so rounding errors don't add up.
         combined = _grosze(sum((f.cost_pln / f.distance_km for f in fuels), Decimal(0)))
     return ConsumptionSummary(by_fuel=fuels, fuel_cost_per_km_pln=combined)
+
+
+# --- Reminders --------------------------------------------------------------------------
+#
+# A reminder is due by a date, by a mileage, or by both — whichever comes first. The status is
+# calculated on every read from today's date and the car's current mileage, so it is never
+# stale: logging a refuel can turn a reminder "overdue" without touching the reminder itself.
+
+DUE_SOON_DAYS = 30
+DUE_SOON_KM = 1000
+
+
+class ReminderStatus(StrEnum):
+    OVERDUE = "overdue"
+    DUE_SOON = "due_soon"
+    NO_MILEAGE = "no_mileage"  # due by mileage only, but the car has no mileage recorded
+    PLANNED = "planned"
+    DONE = "done"
+
+    @property
+    def label(self) -> str:
+        return {
+            "overdue": "Zaległe",
+            "due_soon": "Wkrótce",
+            "no_mileage": "Brak danych o przebiegu",
+            "planned": "Zaplanowane",
+            "done": "Wykonane",
+        }[self.value]
+
+
+# Most urgent first; used to sort reminder lists.
+_URGENCY = [
+    ReminderStatus.OVERDUE,
+    ReminderStatus.DUE_SOON,
+    ReminderStatus.NO_MILEAGE,
+    ReminderStatus.PLANNED,
+    ReminderStatus.DONE,
+]
+
+
+@dataclass(frozen=True)
+class ReminderState:
+    status: ReminderStatus
+    days_left: int | None  # negative: days after the due date
+    km_left: int | None  # negative: km past the due mileage
+
+    @property
+    def sort_key(self) -> tuple[int, float]:
+        """Most urgent status first, then whichever condition is closest."""
+        days = self.days_left if self.days_left is not None else float("inf")
+        # 1 day ≈ 1000 km / 30 days, so date- and mileage-based reminders interleave sensibly.
+        km_as_days = (
+            self.km_left * DUE_SOON_DAYS / DUE_SOON_KM if self.km_left is not None else float("inf")
+        )
+        return _URGENCY.index(self.status), min(days, km_as_days)
+
+
+def reminder_state(
+    due_date: dt.date | None,
+    due_odometer_km: int | None,
+    completed: bool,
+    today: dt.date,
+    current_km: int | None,
+) -> ReminderState:
+    days_left = (due_date - today).days if due_date is not None else None
+    km_left = (
+        due_odometer_km - current_km
+        if due_odometer_km is not None and current_km is not None
+        else None
+    )
+
+    if completed:
+        status = ReminderStatus.DONE
+    elif (days_left is not None and days_left < 0) or (km_left is not None and km_left <= 0):
+        status = ReminderStatus.OVERDUE
+    elif (days_left is not None and days_left <= DUE_SOON_DAYS) or (
+        km_left is not None and km_left <= DUE_SOON_KM
+    ):
+        status = ReminderStatus.DUE_SOON
+    elif due_date is None and km_left is None:
+        status = ReminderStatus.NO_MILEAGE
+    else:
+        status = ReminderStatus.PLANNED
+    return ReminderState(status, days_left, km_left)
+
+
+def describe_due(state: ReminderState) -> list[str]:
+    """Human-readable distance to each due condition, e.g. ['za 12 dni', '300 km po terminie']."""
+    parts = []
+    if state.days_left is not None:
+        days = abs(state.days_left)
+        unit = "dzień" if days == 1 else "dni"
+        if state.days_left > 0:
+            parts.append(f"za {days} {unit}")
+        elif state.days_left == 0:
+            parts.append("dziś")
+        else:
+            parts.append(f"{days} {unit} po terminie")
+    if state.km_left is not None:
+        if state.km_left > 0:
+            parts.append(f"za {format_km(state.km_left)}")
+        elif state.km_left == 0:
+            parts.append("przebieg osiągnięty")
+        else:
+            parts.append(f"{format_km(-state.km_left)} po terminie")
+    return parts

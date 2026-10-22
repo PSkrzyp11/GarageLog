@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% set is_new = reminder is none %}
+{% set heading = "Nowe przypomnienie" if is_new else "Edytuj przypomnienie" %}
+{% block title %}{{ heading }} — {{ car.name }} — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('car_reminders', car_id=car.id) }}">← {{ car.name }}: przypomnienia</a></p>
+
+<section class="card form-card">
+  <h1>{{ heading }}</h1>
+  <p class="muted">Podaj datę, przebieg albo oba — przypomnimy o tym, co nastąpi wcześniej.</p>
+  {{ forms.form_alert(errors.get("form")) }}
+
+  <form method="post" class="form"
+        action="{{ url_for('create_reminder', car_id=car.id) if is_new
+                   else url_for('update_reminder', car_id=car.id, reminder_id=reminder.id) }}">
+    {{ csrf_input(request) }}
+
+    {{ forms.field("title", "Co trzeba zrobić", value=values.get("title", ""),
+                   error=errors.get("title"), hint="np. „Wymiana oleju” albo „Przegląd techniczny”",
+                   attrs={"maxlength": 120}) }}
+
+    <div class="form-row">
+      {{ forms.field("due_date", "Do dnia", type="date", value=values.get("due_date", ""),
+                     error=errors.get("due_date"), required=False,
+                     attrs={"min": "1950-01-01", "max": "2100-12-31"}) }}
+      {{ forms.field("due_odometer_km", "Do przebiegu (km)", value=values.get("due_odometer_km", ""),
+                     error=errors.get("due_odometer_km"), required=False,
+                     attrs={"inputmode": "numeric"}) }}
+    </div>
+
+    {{ forms.textarea("notes", "Notatki", value=values.get("notes", ""), error=errors.get("notes"),
+                      maxlength=2000) }}
+
+    <div class="form-actions">
+      <button type="submit" class="button">{{ "Dodaj przypomnienie" if is_new else "Zapisz zmiany" }}</button>
+      <a href="{{ url_for('car_reminders', car_id=car.id) }}">Anuluj</a>
+      {% if not is_new %}
+        <a class="danger-link" href="{{ url_for('delete_reminder_page', car_id=car.id, reminder_id=reminder.id) }}">Usuń przypomnienie</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

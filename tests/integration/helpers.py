@@ -14,6 +14,7 @@ OTHER_EMAIL = "anna@example.com"
 CSRF_INPUT = re.compile(r'name="csrf_token" value="([^"]+)"')
 CAR_URL = re.compile(r"/cars/(\d+)$")
 ENTRY_EDIT_LINK = re.compile(r"/cars/\d+/(service|fuel|odometer)/(\d+)/edit")
+REMINDER_EDIT_LINK = re.compile(r"/cars/\d+/reminders/(\d+)/edit")
 
 
 def csrf_token_from(client: TestClient, path: str) -> str:
@@ -134,3 +135,19 @@ def add_reading(client: TestClient, car_id: int, **overrides: str) -> int:
     response = post_form(client, url, reading_form(**overrides), form_page=url)
     assert response.status_code == 303, response.text
     return _newest_entry_id(client, car_id, "odometer")
+
+
+def reminder_form(**overrides: str) -> dict[str, str]:
+    data = {"title": "Wymiana oleju", "due_date": "2027-01-01", "due_odometer_km": "", "notes": ""}
+    return data | overrides
+
+
+def add_reminder(client: TestClient, car_id: int, **overrides: str) -> int:
+    """Add a reminder and return its ID (the newest one on the car's reminders page)."""
+    url = f"/cars/{car_id}/reminders/new"
+    response = post_form(client, url, reminder_form(**overrides), form_page=url)
+    assert response.status_code == 303, response.text
+    page = client.get(f"/cars/{car_id}/reminders").text
+    ids = [int(found) for found in REMINDER_EDIT_LINK.findall(page)]
+    assert ids, "no reminders on the reminders page"
+    return max(ids)

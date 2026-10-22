@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{# "with context": the macro needs `request` for url_for and the CSRF field #}
+{% from "reminders/_item.html" import reminder_item with context %}
 
 {% block title %}Twój garaż — GarageLog{% endblock %}
 
@@ -9,6 +11,15 @@
     <a class="button" href="{{ url_for('new_car_page') }}">Dodaj auto</a>
   {% endif %}
 </div>
+
+{% if urgent_reminders %}
+  <section class="dashboard-reminders">
+    <h2>Do zrobienia</h2>
+    <ul class="reminder-list">
+      {% for view in urgent_reminders %}{{ reminder_item(view, return_to="dashboard", show_car=True) }}{% endfor %}
+    </ul>
+  </section>
+{% endif %}
 
 {% if cars %}
   <ul class="car-list">
@@ -23,6 +34,7 @@
           <a href="{{ url_for('car_costs', car_id=item.car.id) }}?period=year">Wydatki w {{ year }}</a>:
           <strong>{{ year_costs.get(item.car.id, 0) | pln }}</strong>
         </p>
+        <p><a href="{{ url_for('car_reminders', car_id=item.car.id) }}">Przypomnienia</a></p>
       </li>
     {% endfor %}
   </ul>
