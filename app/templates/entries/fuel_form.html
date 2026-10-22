@@ -19,9 +19,15 @@
     <div class="form-row">
       {{ forms.field("date", "Data", type="date", value=values.get("date", ""),
                      error=errors.get("date"), attrs={"min": "1950-01-01", "max": today}) }}
+      {% set odometer_hint = "Stan licznika przy dystrybutorze." %}
+      {% if last_odometer_km is not none %}
+        {% set odometer_hint = odometer_hint ~ " Ostatni zapisany: " ~ (last_odometer_km | km) ~ "." %}
+      {% endif %}
+      {# A new refuel starts at the mileage: on a phone the numeric keyboard opens at once. #}
       {{ forms.field("odometer_km", "Przebieg (km)", value=values.get("odometer_km", ""),
-                     error=errors.get("odometer_km"), hint="Stan licznika przy dystrybutorze.",
-                     attrs={"inputmode": "numeric"}) }}
+                     error=errors.get("odometer_km"), hint=odometer_hint,
+                     attrs={"inputmode": "numeric", "autofocus": "autofocus"} if is_new
+                           else {"inputmode": "numeric"}) }}
     </div>
 
     {% if fuel_options | length > 1 %}
@@ -46,7 +52,7 @@
     {{ forms.checkbox("is_full_tank", "Zatankowano do pełna", checked=values.get("is_full_tank") == "on",
                       hint="Spalanie liczymy tylko między dwoma tankowaniami do pełna.") }}
 
-    {{ forms.checkbox("missed_previous", "Pominąłem wcześniejsze tankowanie",
+    {{ forms.checkbox("missed_previous", "Pominięto wcześniejsze tankowanie",
                       checked=values.get("missed_previous") == "on",
                       hint="Zaznacz, jeśli poprzednie tankowanie nie zostało zapisane — "
                            "wtedy ten odcinek nie zafałszuje spalania.") }}

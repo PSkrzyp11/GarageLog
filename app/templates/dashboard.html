@@ -35,6 +35,10 @@
           <strong>{{ year_costs.get(item.car.id, 0) | pln }}</strong>
         </p>
         <p><a href="{{ url_for('car_reminders', car_id=item.car.id) }}">Przypomnienia</a></p>
+        {# The most frequent entry, one tap from the start screen of the phone app. #}
+        <p class="car-actions">
+          <a class="button button-small" href="{{ url_for('new_fuel_entry_page', car_id=item.car.id) }}">+ Tankowanie</a>
+        </p>
       </li>
     {% endfor %}
   </ul>

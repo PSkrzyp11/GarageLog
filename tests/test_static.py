@@ -47,3 +47,36 @@ def test_vendored_htmx_is_served(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.text.startswith("var htmx=")
+
+
+# --- Installing on a phone (web app manifest) -------------------------------------------
+
+
+def test_web_app_manifest_describes_an_installable_app(client: TestClient) -> None:
+    response = client.get("/manifest.webmanifest")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/manifest+json"
+    manifest = response.json()
+    assert manifest["name"] == "GarageLog"
+    assert manifest["start_url"] == "/"
+    assert manifest["display"] == "standalone"
+    assert {icon["sizes"] for icon in manifest["icons"]} == {"192x192", "512x512"}
+    assert any(icon["purpose"] == "maskable" for icon in manifest["icons"])
+
+
+def test_manifest_icons_exist_as_png(client: TestClient) -> None:
+    for icon in client.get("/manifest.webmanifest").json()["icons"]:
+        response = client.get(icon["src"])
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+        assert response.content.startswith(b"\x89PNG")
+
+
+def test_pages_link_the_manifest_and_the_home_screen_icon(client: TestClient) -> None:
+    page = client.get("/login").text
+
+    assert '<link rel="manifest" href="http://testserver/manifest.webmanifest">' in page
+    assert '<link rel="apple-touch-icon" href="http://testserver/static/icons/' in page
+    assert '<meta name="theme-color" content="#1f5fae">' in page

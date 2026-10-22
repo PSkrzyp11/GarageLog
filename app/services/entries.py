@@ -101,6 +101,18 @@ def allowed_fuel_types(car: Car, entry: FuelEntry | None = None) -> list[FuelTyp
     return fuels
 
 
+def usual_fuel_type(db: Session, car: Car) -> FuelType:
+    """The fuel of the car's latest refuel — an LPG car is mostly filled with LPG — or the main
+    fuel when there is no refuel yet (or that fuel no longer fits the car)."""
+    last = db.scalar(
+        select(FuelEntry.fuel_type)
+        .where(FuelEntry.car_id == car.id)
+        .order_by(FuelEntry.date.desc(), FuelEntry.odometer_km.desc(), FuelEntry.id.desc())
+        .limit(1)
+    )
+    return last if last in car.fuel_types else car.fuel_types[0]
+
+
 def _ensure_fuel_type_allowed(car: Car, form: FuelEntryForm, entry: FuelEntry | None) -> None:
     if form.fuel_type not in allowed_fuel_types(car, entry):
         raise EntryValidationError("fuel_type", "To auto nie jest tankowane tym paliwem.")
