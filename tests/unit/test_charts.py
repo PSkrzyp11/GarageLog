@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from app.charts import fuel_price_chart, monthly_costs_chart
+from app.charts import consumption_chart, fuel_price_chart, monthly_costs_chart
 from app.stats import (
     FUEL,
     Expense,
@@ -11,6 +11,7 @@ from app.stats import (
     Refuel,
     fuel_prices,
     monthly_costs,
+    summarize_consumption,
 )
 
 TODAY = date(2026, 10, 22)
@@ -149,3 +150,35 @@ def test_fuel_price_chart_has_gaps_where_a_fuel_was_not_refuelled() -> None:
 
 def test_no_refuels_means_no_price_chart() -> None:
     assert fuel_price_chart({}) is None
+
+
+# --- Consumption over time --------------------------------------------------------------
+
+
+def test_consumption_chart_has_one_point_per_stretch_and_fuel() -> None:
+    refuels = [
+        refuel(date(2026, 1, 1), 100_000, "40", "260", id_=1),
+        refuel(date(2026, 1, 20), 100_800, "48", "312", id_=2),  # 6.0 l/100 km
+        refuel(date(2026, 2, 10), 101_400, "42", "273", id_=3),  # 7.0 l/100 km
+        refuel(date(2026, 1, 5), 100_200, "30", "90", fuel="lpg", id_=4),
+        refuel(date(2026, 2, 10), 100_900, "70", "210", fuel="lpg", id_=5),  # 10.0 l/100 km
+    ]
+
+    chart = consumption_chart(summarize_consumption(refuels, Period.ALL, TODAY))
+
+    assert chart is not None
+    assert chart.payload["unit"] == "l/100 km"
+    assert chart.payload["decimals"] == 1
+    assert chart.payload["labels"] == ["20.01.2026", "10.02.2026"]
+    petrol, lpg = chart.payload["series"]
+    assert petrol == {"key": "petrol", "label": "Benzyna", "values": [6.0, 7.0]}
+    assert lpg["values"] == [None, 10.0]
+    assert ["10.02.2026", "LPG", "700 km", "70,00 l", "10,0 l/100 km"] in [
+        [cell.replace("\u00a0", " ") for cell in row] for row in chart.rows
+    ]
+
+
+def test_no_full_to_full_stretch_means_no_consumption_chart() -> None:
+    one_refuel = [refuel(date(2026, 1, 1), 100_000, "40", "260")]
+
+    assert consumption_chart(summarize_consumption(one_refuel, Period.ALL, TODAY)) is None

@@ -36,8 +36,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   okres; zamiast mylących liczb — „za mało danych” z wyjaśnieniem.
 - **Spalanie** — metodą „od pełnego do pełnego baku”, osobno dla każdego paliwa, z tabelą
   odcinków, z których wynika.
-- **Wykresy** — wydatki miesięczne (paliwo i pozostałe) i cena paliwa w czasie, z tabelą
-  danych obok każdego wykresu.
+- **Wykresy** — wydatki miesięczne (paliwo i pozostałe), cena paliwa i spalanie w czasie
+  (każdy odcinek od pełnego do pełnego baku), z tabelą danych obok każdego wykresu.
 - **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), także
   cykliczne (np. olej co rok lub 15 000 km), z sekcją „Do zrobienia” na pulpicie; terminy
   można pobrać jako plik `.ics` do Kalendarza Google, Apple albo Outlooka.
@@ -233,8 +233,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Wykres spalania w czasie,
-subskrypcja kalendarza (zamiast pobierania pliku), reset hasła.
+Subskrypcja kalendarza (zamiast pobierania pliku), reset hasła.
 
 ## Licencja
 

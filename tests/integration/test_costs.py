@@ -246,3 +246,16 @@ def test_period_fragment_for_htmx_includes_the_charts(client: TestClient, car_id
     fragment = client.get(f"/cars/{car_id}/costs?period=year", headers={"HX-Request": "true"}).text
 
     assert len(charts_on(fragment)) == 2
+
+
+def test_costs_page_shows_consumption_over_time(client: TestClient, car_id: int) -> None:
+    add_fuel_entry(client, car_id, date="2025-03-01", odometer_km="100000", liters="40")
+    add_fuel_entry(client, car_id, date="2025-03-20", odometer_km="100800", liters="48")
+    add_fuel_entry(client, car_id, date="2025-04-10", odometer_km="101400", liters="42")
+
+    page = costs_page(client, car_id)
+
+    consumption = next(chart for chart in charts_on(page) if chart["unit"] == "l/100 km")
+    assert consumption["labels"] == ["20.03.2025", "10.04.2025"]
+    assert consumption["series"][0]["values"] == [6.0, 7.0]
+    assert "Spalanie w czasie" in page

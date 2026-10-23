@@ -11,7 +11,7 @@ from decimal import Decimal
 from sqlalchemy import func, select, union_all
 from sqlalchemy.orm import Session
 
-from app.charts import Chart, fuel_price_chart, monthly_costs_chart
+from app.charts import Chart, consumption_chart, fuel_price_chart, monthly_costs_chart
 from app.models import Car, FuelEntry, ServiceCategory, ServiceEntry, User
 from app.services.entries import odometer_points
 from app.stats import (
@@ -73,6 +73,7 @@ def car_consumption(db: Session, car: Car, period: Period) -> ConsumptionSummary
 class CostCharts:
     monthly: Chart | None
     fuel_prices: Chart | None
+    consumption: Chart | None
 
 
 def car_charts(db: Session, car: Car, period: Period) -> CostCharts:
@@ -80,6 +81,7 @@ def car_charts(db: Session, car: Car, period: Period) -> CostCharts:
     return CostCharts(
         monthly=monthly_costs_chart(monthly_costs(car_expenses(db, car), period, day)),
         fuel_prices=fuel_price_chart(fuel_prices(car_refuels(db, car), period, day)),
+        consumption=consumption_chart(car_consumption(db, car, period)),
     )
 
 
