@@ -58,29 +58,9 @@
                       hint="Zaznacz, jeśli poprzednie tankowanie nie zostało zapisane — "
                            "wtedy ten odcinek nie zafałszuje spalania.") }}
 
-    <div class="field">
-      <label for="receipt">Paragon <span class="muted">(opcjonalnie)</span></label>
-      {% if receipt_type %}
-        {% set receipt_url = url_for('fuel_receipt', car_id=car.id, fuel_id=entry.id) %}
-        <p class="receipt-current">
-          {% if receipt_type == jpeg %}
-            <a href="{{ receipt_url }}"><img src="{{ receipt_url }}" alt="Obecny paragon" class="receipt-thumb"></a>
-          {% else %}
-            <a href="{{ receipt_url }}">Pobierz obecny paragon (PDF)</a>
-          {% endif %}
-        </p>
-      {% endif %}
-      {# On a phone "image/*" also offers the camera. The server checks the real type anyway. #}
-      <input id="receipt" name="receipt" type="file" accept="image/*,application/pdf"
-             {% if errors.get("receipt") %}aria-invalid="true"{% endif %}
-             aria-describedby="receipt-help">
-      {{ forms.help_text("receipt", errors.get("receipt"),
-                         ("Wybierz plik, żeby zastąpić obecny. " if receipt_type else "")
-                         ~ "Zdjęcie albo PDF, do 10 MB. Ze zdjęcia usuwamy lokalizację i inne metadane.") }}
-    </div>
-    {% if receipt_type %}
-      {{ forms.checkbox("remove_receipt", "Usuń paragon", checked=values.get("remove_receipt") == "on") }}
-    {% endif %}
+    {% set receipt_url = url_for('fuel_receipt', car_id=car.id, fuel_id=entry.id) if receipt_type %}
+    {{ forms.receipt_field("Paragon", "paragon", receipt_url, receipt_type, jpeg,
+                           errors.get("receipt"), values.get("remove_receipt") == "on") }}
 
     <div class="form-actions">
       <button type="submit" class="button">{{ "Dodaj tankowanie" if is_new else "Zapisz zmiany" }}</button>

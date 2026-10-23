@@ -24,8 +24,10 @@
           <div class="timeline-main">
             <h3>{% if car.is_archived %}{{ item.title }}{% else %}<a href="{{ edit_url }}">{{ item.title }}</a>{% endif %}</h3>
             {% if item.details %}<p class="timeline-details">{{ item.details }}</p>{% endif %}
-            {% if item.has_receipt %}
+            {% if item.has_receipt and item.kind == "fuel" %}
               <p><a href="{{ url_for('fuel_receipt', car_id=car.id, fuel_id=item.id) }}">Paragon</a></p>
+            {% elif item.has_receipt %}
+              <p><a href="{{ url_for('service_receipt', car_id=car.id, entry_id=item.id) }}">Dokument</a></p>
             {% endif %}
             {% if item.notes %}<p class="muted timeline-notes">{{ item.notes }}</p>{% endif %}
           </div>

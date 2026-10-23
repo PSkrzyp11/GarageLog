@@ -27,8 +27,9 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   trafia do archiwum: znika z pulpitu, a jego historia zostaje tylko do odczytu.
 - **Historia** — tankowania (pełne / częściowe / po pominiętym tankowaniu), serwis i inne
   wydatki, odczyty licznika; wspólna oś czasu z filtrem rodzaju i roku.
-- **Paragony** — do tankowania można dołączyć zdjęcie (także prosto z aparatu telefonu)
-  albo PDF; ze zdjęcia usuwana jest lokalizacja i inne metadane.
+- **Paragony i faktury** — do tankowania paragon, do wpisu serwisowego faktura albo polisa:
+  zdjęcie (także prosto z aparatu telefonu) lub PDF; ze zdjęcia usuwana jest lokalizacja
+  i inne metadane.
 - **Spójny przebieg** — wpisy można dopisywać w dowolnej kolejności (stare faktury), ale
   przebieg nie może maleć z upływem czasu; komunikat wskazuje konfliktowy wpis.
 - **Koszty** — koszt całkowity, paliwo, podział na kategorie i koszt na kilometr za wybrany
@@ -232,7 +233,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Wykres spalania w czasie, paragony także przy serwisie,
+Wykres spalania w czasie,
 subskrypcja kalendarza (zamiast pobierania pliku), reset hasła.
 
 ## Licencja

@@ -5,14 +5,16 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Car, OdometerReading, ServiceEntry
+from app.models import Car, OdometerReading, Receipt, ServiceEntry
 from app.timeutils import today
 from tests.integration.helpers import (
     add_car,
     add_reading,
     add_service_entry,
     count,
+    photo_bytes,
     post_form,
+    post_with_file,
     reading_form,
     register,
     service_form,
@@ -261,3 +263,79 @@ def test_deleting_car_removes_its_service_entries(
     assert count(db_session, Car) == 0
     assert count(db_session, ServiceEntry) == 0
     assert count(db_session, OdometerReading) == 0
+
+
+# --- Invoices and other documents of service entries ------------------------------------
+
+INVOICE_PDF = b"%PDF-1.7 faktura %%EOF"
+
+
+def receipt_of_service(db: Session, entry_id: int) -> Receipt | None:
+    db.expire_all()
+    return db.scalars(select(Receipt).where(Receipt.service_entry_id == entry_id)).one_or_none()
+
+
+def newest_service_id(db: Session) -> int:
+    return db.scalar(select(ServiceEntry.id).order_by(ServiceEntry.id.desc()).limit(1))
+
+
+def test_invoice_pdf_is_saved_and_offered_as_a_download(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    url = f"/cars/{car_id}/service/new"
+
+    response = post_with_file(
+        client, url, service_form(title="Rozrząd"), ("faktura.pdf", INVOICE_PDF, "application/pdf")
+    )
+
+    assert response.status_code == 303
+    entry_id = newest_service_id(db_session)
+    assert "Dokument</a>" in car_page(client, car_id)
+    served = client.get(f"/cars/{car_id}/service/{entry_id}/receipt")
+    assert served.headers["content-type"] == "application/pdf"
+    assert served.headers["content-disposition"] == (
+        f'attachment; filename="dokument-{service_form()["date"]}.pdf"'
+    )
+    assert served.content == INVOICE_PDF
+
+
+def test_invoice_photo_can_be_replaced_and_removed(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    entry_id = add_service_entry(client, car_id, title="Opony")
+    edit = f"/cars/{car_id}/service/{entry_id}/edit"
+
+    post_with_file(
+        client, edit, service_form(title="Opony"), ("f.jpg", photo_bytes(), "image/jpeg")
+    )
+    assert receipt_of_service(db_session, entry_id).content_type == "image/jpeg"
+    assert 'alt="Obecny dokument"' in client.get(edit).text
+
+    post_form(client, edit, service_form(title="Opony", remove_receipt="on"), form_page=edit)
+    assert receipt_of_service(db_session, entry_id) is None
+
+
+def test_service_form_rejects_a_file_that_is_not_a_document(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    url = f"/cars/{car_id}/service/new"
+
+    response = post_with_file(
+        client, url, service_form(), ("faktura.pdf", b"<html></html>", "application/pdf")
+    )
+
+    assert response.status_code == 422
+    assert "Dodaj zdjęcie (JPG, PNG, WebP) albo PDF." in response.text
+    assert count(db_session, ServiceEntry) == 0
+
+
+def test_deleting_the_service_entry_deletes_its_invoice(
+    client: TestClient, db_session: Session, car_id: int
+) -> None:
+    url = f"/cars/{car_id}/service/new"
+    post_with_file(client, url, service_form(), ("faktura.pdf", INVOICE_PDF, "application/pdf"))
+    delete = f"/cars/{car_id}/service/{newest_service_id(db_session)}/delete"
+
+    post_form(client, delete, {}, form_page=delete)
+
+    assert count(db_session, Receipt) == 0
