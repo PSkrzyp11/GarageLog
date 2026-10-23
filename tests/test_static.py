@@ -79,4 +79,9 @@ def test_pages_link_the_manifest_and_the_home_screen_icon(client: TestClient) ->
 
     assert '<link rel="manifest" href="http://testserver/manifest.webmanifest">' in page
     assert '<link rel="apple-touch-icon" href="http://testserver/static/icons/' in page
-    assert '<meta name="theme-color" content="#1f5fae">' in page
+    assert (
+        '<meta name="theme-color" content="#1f5fae" media="(prefers-color-scheme: light)">' in page
+    )
+    assert (
+        '<meta name="theme-color" content="#1b2129" media="(prefers-color-scheme: dark)">' in page
+    )

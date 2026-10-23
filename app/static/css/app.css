@@ -1,10 +1,13 @@
-/* Mobile-first base styles. Colours and spacing live in variables so later stages reuse them. */
+/* Mobile-first base styles. Colours and spacing live in variables so later stages reuse them.
+   The colours have a dark variant below; tests/test_contrast.py checks both for readability. */
 :root {
+  color-scheme: light dark; /* form controls and scrollbars follow the theme too */
   --color-bg: #f6f7f9;
   --color-surface: #ffffff;
   --color-text: #1d232b;
   --color-muted: #5b6573;
   --color-primary: #1f5fae;
+  --color-on-primary: #ffffff; /* text on a primary or error button */
   --color-border: #dde2e8;
   --color-error: #b42318;
   --color-fuel: #1d7a4d;
@@ -21,6 +24,28 @@
   line-height: 1.5;
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+/* Dark theme: follows the system setting of the phone or computer. Light text on dark
+   surfaces; the primary colour gets lighter, so buttons switch to dark text. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #12161c;
+    --color-surface: #1b2129;
+    --color-text: #e6e9ee;
+    --color-muted: #a3adba;
+    --color-primary: #7fb0f0;
+    --color-on-primary: #0f1720;
+    --color-border: #354050;
+    --color-error: #f4978e;
+    --color-fuel: #5cc38f;
+    --color-warning: #f0a35a;
+    --color-warning-text: #f6c08a;
+    --color-warning-bg: #36270f;
+    --color-error-bg: #3b1d1b;
+    --color-success: #5cc38f;
+    --color-success-bg: #142c1e;
+  }
 }
 
 *,
@@ -212,7 +237,7 @@ input[aria-invalid="true"] {
   border: 0;
   border-radius: var(--radius);
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-on-primary);
   cursor: pointer;
 }
 
@@ -260,7 +285,7 @@ textarea:focus-visible {
   top: -3rem;
   padding: 0.5rem 1rem;
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--color-on-primary);
   border-radius: var(--radius);
   z-index: 10;
 }
