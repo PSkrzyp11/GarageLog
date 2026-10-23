@@ -15,10 +15,13 @@
     lpg: "--color-fuel",
   };
 
-  const number = new Intl.NumberFormat("pl-PL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  // Amounts have two decimal places; a chart may ask for another precision ("decimals").
+  function numberFormat(decimals) {
+    return new Intl.NumberFormat("pl-PL", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
 
   function cssColor(key) {
     const variable = COLOR_VARIABLES[key] || "--color-muted";
@@ -31,6 +34,7 @@
     }
     const spec = JSON.parse(canvas.dataset.chart);
     const stacked = spec.kind === "stacked-bar";
+    const number = numberFormat(spec.decimals ?? 2);
     const format = (value) => `${number.format(value)} ${spec.unit}`;
 
     canvas.parentElement.hidden = false;

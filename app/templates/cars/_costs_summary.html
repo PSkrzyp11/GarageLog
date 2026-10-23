@@ -117,6 +117,11 @@
         </div>
       {% endfor %}
     </div>
+
+    {% if charts.consumption %}
+      {{ chart(charts.consumption, "Spalanie w czasie",
+               "Wykres liniowy spalania na kolejnych odcinkach od pełnego do pełnego baku, osobno dla każdego paliwa. Rosnące spalanie bywa pierwszym znakiem usterki.") }}
+    {% endif %}
   </section>
 {% endif %}
 </div>
