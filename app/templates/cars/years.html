@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{# "with context": the macros need `request` for url_for #}
+{% from "cars/_tabs.html" import car_tabs with context %}
+{% from "cars/_chart.html" import chart as chart_figure %}
+
+{% block title %}Rok po roku — {{ car.name }} — GarageLog{% endblock %}
+
+{% block scripts %}
+  <script src="{{ static_url(request, 'js/chart.umd.min.js') }}" defer></script>
+  <script src="{{ static_url(request, 'js/charts.js') }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
+
+<div class="page-header">
+  <h1>{{ car.name }}</h1>
+</div>
+{{ car_tabs(car, "years") }}
+
+{% if years %}
+  {% if chart %}
+    {{ chart_figure(chart, "Wydatki w kolejnych latach",
+                    "Wykres słupkowy wydatków w kolejnych latach, z podziałem na paliwo i pozostałe wydatki.") }}
+  {% endif %}
+
+  <div class="table-wide">
+    <table class="cost-table years-table">
+      <caption class="visually-hidden">Koszty i spalanie w kolejnych latach</caption>
+      <thead>
+        <tr>
+          <th scope="col">Rok</th>
+          <th scope="col">Przejechano</th>
+          <th scope="col">Paliwo</th>
+          <th scope="col">Pozostałe</th>
+          <th scope="col">Razem</th>
+          <th scope="col">Zmiana</th>
+          <th scope="col">Średnio na miesiąc</th>
+          <th scope="col">Koszt na km</th>
+          <th scope="col">Spalanie</th>
+          <th scope="col">Największy wydatek poza paliwem</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for year in years %}
+          <tr>
+            <th scope="row">{{ year.year }}{% if year.is_current %} <span class="muted">(do dziś)</span>{% endif %}</th>
+            <td>{{ year.distance_km | km if year.distance_km is not none else "—" }}</td>
+            <td>{{ year.fuel_pln | pln }}</td>
+            <td>{{ year.other_pln | pln }}</td>
+            <td><strong>{{ year.total_pln | pln }}</strong></td>
+            <td>
+              {% if year.change_percent is none %}—
+              {% elif year.change_percent > 0 %}+{{ year.change_percent }}%
+              {% elif year.change_percent < 0 %}−{{ -year.change_percent }}%
+              {% else %}0%{% endif %}
+            </td>
+            <td>{{ year.monthly_average_pln | pln }}</td>
+            <td>{{ (year.cost_per_km_pln | pln) ~ "/km" if year.cost_per_km_pln is not none else "—" }}</td>
+            <td>
+              {% for fuel, value in year.consumption.items() %}
+                {{ fuel_labels[fuel] }}: {{ value | per_100km }}{% if not loop.last %}<br>{% endif %}
+              {% else %}—{% endfor %}
+            </td>
+            <td>
+              {% if year.top_other %}
+                {{ category_label(year.top_other.category) }}: {{ year.top_other.amount_pln | pln }}
+                <span class="muted">({{ year.top_other.share_percent }}%)</span>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <section class="notes muted">
+    <h2>Jak liczymy</h2>
+    <ul>
+      <li>Rok kalendarzowy, z tymi samymi definicjami co na stronie kosztów.</li>
+      <li>„Zmiana” porównuje wydatki razem z poprzednim rokiem; bieżący rok trwa, więc jego
+        zmiana jest zwykle ujemna.</li>
+      <li>„Średnio na miesiąc” dzieli wydatki przez liczbę miesięcy roku objętych historią
+        (w pierwszym roku od miesiąca pierwszego wpisu, w bieżącym — do dziś).</li>
+      <li>Koszt na km pokazujemy od {{ min_distance_km | km }} przejechanych w roku, spalanie —
+        dla odcinków od pełnego do pełnego baku zakończonych w danym roku.</li>
+    </ul>
+  </section>
+{% else %}
+  <section class="card empty-state">
+    <p>Nie ma jeszcze żadnych wpisów.</p>
+    <p class="muted">Podsumowanie pojawi się, gdy dodasz tankowania i wydatki.</p>
+  </section>
+{% endif %}
+{% endblock %}

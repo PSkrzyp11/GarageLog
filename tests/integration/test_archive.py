@@ -23,6 +23,7 @@ from tests.integration.test_access_control import (
 ALLOWED_WHEN_ARCHIVED = {
     ("GET", "/cars/{car_id}"),
     ("GET", "/cars/{car_id}/costs"),
+    ("GET", "/cars/{car_id}/years"),
     ("GET", "/cars/{car_id}/export/service.csv"),
     ("GET", "/cars/{car_id}/export/fuel.csv"),
     ("GET", "/cars/{car_id}/fuel/{fuel_id}/receipt"),

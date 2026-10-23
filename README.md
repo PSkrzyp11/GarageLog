@@ -34,6 +34,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   przebieg nie może maleć z upływem czasu; komunikat wskazuje konfliktowy wpis.
 - **Koszty** — koszt całkowity, paliwo, podział na kategorie i koszt na kilometr za wybrany
   okres; zamiast mylących liczb — „za mało danych” z wyjaśnieniem.
+- **Rok po roku** — kolejne lata obok siebie: wydatki i ich zmiana, średnio na miesiąc,
+  dystans, koszt na km, spalanie i największy wydatek poza paliwem.
 - **Spalanie** — metodą „od pełnego do pełnego baku”, osobno dla każdego paliwa, z tabelą
   odcinków, z których wynika.
 - **Wykresy** — wydatki miesięczne (paliwo i pozostałe), cena paliwa i spalanie w czasie

@@ -335,6 +335,88 @@ def summarize_consumption(
     return ConsumptionSummary(by_fuel=fuels, fuel_cost_per_km_pln=combined)
 
 
+# --- Year by year ----------------------------------------------------------------------
+#
+# Every calendar year of the car's history with the same definitions as the summary above
+# (total, fuel, cost per km from MIN_DISTANCE_KM, full-to-full consumption per fuel), so years
+# can be compared side by side.
+
+
+@dataclass(frozen=True)
+class YearSummary:
+    year: int
+    is_current: bool  # the year is not over yet
+    total_pln: Decimal
+    fuel_pln: Decimal
+    other_pln: Decimal
+    # Change of the total against the previous year, in %; None for the first year or after
+    # a year without expenses.
+    change_percent: int | None
+    monthly_average_pln: Decimal  # over the months of the year that are in the history
+    distance_km: int | None
+    cost_per_km_pln: Decimal | None
+    consumption: dict[str, Decimal]  # fuel → l/100 km of the stretches that ended this year
+    top_other: CategoryCost | None  # the largest category apart from fuel
+
+
+def yearly_summaries(
+    expenses: Sequence[Expense],
+    odometer_points: Sequence[OdometerPoint],
+    refuels: Sequence[Refuel],
+    today: dt.date,
+) -> list[YearSummary]:
+    """From the year of the first entry to the current one, newest first. A year without any
+    entry in the middle still appears, with zeros (the car stood, or nothing was recorded)."""
+    days = [e.date for e in expenses] + [p.date for p in odometer_points]
+    if not days:
+        return []
+    first_day = min(days)
+    by_fuel: dict[str, list[Refuel]] = defaultdict(list)
+    for refuel in refuels:
+        by_fuel[refuel.fuel_type].append(refuel)
+
+    summaries: list[YearSummary] = []
+    previous_total: Decimal | None = None
+    for year in range(first_day.year, today.year + 1):
+        start, end = dt.date(year, 1, 1), min(dt.date(year, 12, 31), today)
+        in_year = [e for e in expenses if _in_range(e.date, start, end)]
+        totals: dict[str, Decimal] = defaultdict(Decimal)
+        for expense in in_year:
+            totals[expense.category] += expense.amount_pln
+        total = sum(totals.values(), Decimal(0))
+        fuel = totals.pop(FUEL, Decimal(0))
+        distance = driven_distance(odometer_points, start, end)
+        per_km, _ = _cost_per_km(total, len(in_year), distance)
+        months = end.month - (first_day.month if year == first_day.year else 1) + 1
+        top = max(totals.items(), key=lambda item: item[1], default=None)
+        if top is not None and not top[1]:
+            top = None  # only free entries (e.g. warranty repairs): nothing to point out
+        consumption = {}
+        for fuel_type in FUEL_TYPE_ORDER:
+            result = _fuel_consumption(fuel_type, by_fuel[fuel_type], start, end)
+            if result.liters_per_100km is not None:
+                consumption[fuel_type] = result.liters_per_100km
+        summaries.append(
+            YearSummary(
+                year=year,
+                is_current=year == today.year,
+                total_pln=total,
+                fuel_pln=fuel,
+                other_pln=total - fuel,
+                change_percent=(
+                    _percent(total - previous_total, previous_total) if previous_total else None
+                ),
+                monthly_average_pln=_grosze(total / months),
+                distance_km=distance,
+                cost_per_km_pln=per_km,
+                consumption=consumption,
+                top_other=CategoryCost(top[0], top[1], _percent(top[1], total)) if top else None,
+            )
+        )
+        previous_total = total
+    return list(reversed(summaries))
+
+
 # --- Reminders --------------------------------------------------------------------------
 #
 # A reminder is due by a date, by a mileage, or by both — whichever comes first. The status is

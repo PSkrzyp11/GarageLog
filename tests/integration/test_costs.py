@@ -259,3 +259,35 @@ def test_costs_page_shows_consumption_over_time(client: TestClient, car_id: int)
     assert consumption["labels"] == ["20.03.2025", "10.04.2025"]
     assert consumption["series"][0]["values"] == [6.0, 7.0]
     assert "Spalanie w czasie" in page
+
+
+# --- Year by year -----------------------------------------------------------------------
+
+
+def test_year_by_year_page_compares_the_years(client: TestClient, car_id: int) -> None:
+    year = today().year
+    add_fuel_entry(
+        client, car_id, date=f"{year - 1}-03-01", odometer_km="100000", total_cost_pln="200"
+    )
+    add_service_entry(
+        client, car_id, date=f"{year - 1}-04-01", cost_pln="800", category="insurance"
+    )
+    add_fuel_entry(client, car_id, date=f"{year}-01-05", odometer_km="110000", total_cost_pln="300")
+
+    response = client.get(f"/cars/{car_id}/years")
+
+    assert response.status_code == 200
+    page = response.text
+    assert 'aria-current="page">Rok po roku</a>' in page
+    assert f'{year} <span class="muted">(do dziś)</span>' in page
+    assert "Ubezpieczenie: 800,00" in page
+    chart = charts_on(page)[0]
+    assert chart["labels"] == [str(year - 1), str(year)]
+    assert chart["series"][1]["values"] == [800.0, 0.0]  # other expenses per year
+
+
+def test_year_by_year_without_entries(client: TestClient, car_id: int) -> None:
+    # The car was just added: its first odometer reading is the only entry, no expenses yet.
+    page = client.get(f"/cars/{car_id}/years").text
+
+    assert f'<th scope="row">{today().year}' in page
