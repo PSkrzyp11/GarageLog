@@ -42,6 +42,7 @@ PDF_BYTES = b"%PDF-1.7\n%%EOF\n"
 OWNED_ROUTES = [
     ("GET", "/cars/{car_id}"),
     ("GET", "/cars/{car_id}/costs"),
+    ("GET", "/cars/{car_id}/years"),
     ("GET", "/cars/{car_id}/export/service.csv"),
     ("GET", "/cars/{car_id}/export/fuel.csv"),
     ("GET", "/cars/{car_id}/import"),

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
+from app.charts import yearly_costs_chart
 from app.deps import ActiveCar, CurrentUser, DbSession, FormData, OwnedCar
 from app.models import Car, FuelType, PrimaryFuel, User
 from app.schemas import CarCreateForm, CarForm, form_errors, parse_form
@@ -141,6 +142,25 @@ def car_costs(
             "charts": costs_service.car_charts(db, car, selected),
             "fuel_labels": {fuel.value: fuel.label for fuel in FuelType},
             "periods": list(Period),
+            "min_distance_km": MIN_DISTANCE_KM,
+        },
+    )
+
+
+@router.get("/{car_id}/years")
+def car_years(request: Request, user: CurrentUser, car: OwnedCar, db: DbSession) -> Response:
+    """Every calendar year side by side: costs, distance, cost per km, consumption."""
+    years = costs_service.car_years(db, car)
+    return render(
+        request,
+        "cars/years.html",
+        {
+            "user": user,
+            "car": car,
+            "years": years,
+            "chart": yearly_costs_chart(years),
+            "fuel_labels": {fuel.value: fuel.label for fuel in FuelType},
+            "category_label": costs_service.category_label,
             "min_distance_km": MIN_DISTANCE_KM,
         },
     )

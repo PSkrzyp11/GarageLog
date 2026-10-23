@@ -21,10 +21,12 @@ from app.stats import (
     Expense,
     Period,
     Refuel,
+    YearSummary,
     fuel_prices,
     monthly_costs,
     summarize_consumption,
     summarize_costs,
+    yearly_summaries,
 )
 from app.timeutils import today
 
@@ -82,6 +84,12 @@ def car_charts(db: Session, car: Car, period: Period) -> CostCharts:
         monthly=monthly_costs_chart(monthly_costs(car_expenses(db, car), period, day)),
         fuel_prices=fuel_price_chart(fuel_prices(car_refuels(db, car), period, day)),
         consumption=consumption_chart(car_consumption(db, car, period)),
+    )
+
+
+def car_years(db: Session, car: Car) -> list[YearSummary]:
+    return yearly_summaries(
+        car_expenses(db, car), odometer_points(db, car), car_refuels(db, car), today()
     )
 
 

@@ -14,7 +14,7 @@ from typing import Any
 
 from app.formatting import format_consumption, format_date, format_km, format_liters, format_pln
 from app.models import FuelType
-from app.stats import ConsumptionSummary, FuelPrice, MonthCost
+from app.stats import ConsumptionSummary, FuelPrice, MonthCost, YearSummary
 
 POLISH_MONTHS = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
 
@@ -135,5 +135,37 @@ def consumption_chart(consumption: ConsumptionSummary) -> Chart | None:
             ]
             for fuel in measured
             for segment in sorted(fuel.segments, key=lambda s: s.end.date)
+        ],
+    )
+
+
+def yearly_costs_chart(years: list[YearSummary]) -> Chart | None:
+    """Fuel and other expenses per calendar year (oldest first), like the monthly chart."""
+    if not years:
+        return None
+    ordered = sorted(years, key=lambda year: year.year)
+    labels = [str(year.year) for year in ordered]
+    return Chart(
+        payload={
+            "kind": "stacked-bar",
+            "unit": "zł",
+            "labels": labels,
+            "series": [
+                {
+                    "key": "fuel",
+                    "label": "Paliwo",
+                    "values": [_number(y.fuel_pln) for y in ordered],
+                },
+                {
+                    "key": "other",
+                    "label": "Pozostałe wydatki",
+                    "values": [_number(y.other_pln) for y in ordered],
+                },
+            ],
+        },
+        headers=["Rok", "Paliwo", "Pozostałe", "Razem"],
+        rows=[
+            [label, format_pln(y.fuel_pln), format_pln(y.other_pln), format_pln(y.total_pln)]
+            for label, y in zip(labels, ordered, strict=True)
         ],
     )

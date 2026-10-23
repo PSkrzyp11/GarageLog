@@ -832,6 +832,18 @@ input[type="checkbox"]:focus-visible {
   cursor: pointer;
 }
 
+/* Year by year: a wide table scrolls sideways on a phone instead of squeezing the columns. */
+.table-wide {
+  overflow-x: auto;
+  margin-block: var(--space);
+}
+
+.years-table th,
+.years-table td {
+  white-space: nowrap;
+  vertical-align: top;
+}
+
 /* Account */
 
 .account-sections {
