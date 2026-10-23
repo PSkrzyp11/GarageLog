@@ -25,6 +25,13 @@
   </section>
 {% endif %}
 
+<p class="calendar-link">
+  <a href="{{ url_for('car_reminders_calendar', car_id=car.id) }}">Pobierz terminy do kalendarza (.ics)</a>
+  <span class="muted">— zaimportuj plik w Kalendarzu Google, Apple lub w Outlooku. Po zmianach
+    pobierz go jeszcze raz: te same terminy się zaktualizują. Przypomnienia tylko według
+    przebiegu nie mają daty, więc ich w pliku nie ma.</span>
+</p>
+
 {% if reminders.done %}
   <section class="timeline-section">
     <h2>Ostatnio wykonane</h2>

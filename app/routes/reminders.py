@@ -9,10 +9,13 @@ from pydantic import ValidationError
 from app.deps import CurrentUser, DbSession, FormData, OwnedCar, OwnedReminder
 from app.models import Car, Reminder, User
 from app.schemas import ReminderForm, form_errors, parse_form
+from app.services import export as export_service
 from app.services import reminders as reminders_service
 from app.templating import is_htmx, render
 
 router = APIRouter(prefix="/cars/{car_id}/reminders")
+# Not under one car: the due dates of all the user's cars in one file.
+calendar_router = APIRouter()
 
 
 def _back(request: Request, car: Car, data: Mapping[str, str] | None = None) -> RedirectResponse:
@@ -54,6 +57,31 @@ def car_reminders(request: Request, user: CurrentUser, car: OwnedCar, db: DbSess
         "reminders/list.html",
         {"user": user, "car": car, "reminders": reminders_service.car_reminders(db, car)},
     )
+
+
+def _calendar_download(content: bytes, filename: str) -> Response:
+    return Response(
+        content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",  # personal data, like the CSV export
+        },
+    )
+
+
+@router.get("/calendar.ics")
+def car_reminders_calendar(car: OwnedCar, db: DbSession) -> Response:
+    views = reminders_service.car_reminders(db, car).active
+    content = reminders_service.calendar_file(views, f"GarageLog — {car.name}")
+    return _calendar_download(content, export_service.filename(car, "przypomnienia", "ics"))
+
+
+@calendar_router.get("/reminders.ics")
+def all_reminders_calendar(user: CurrentUser, db: DbSession) -> Response:
+    views = reminders_service.active_reminders(db, user)
+    content = reminders_service.calendar_file(views, "GarageLog — przypomnienia")
+    return _calendar_download(content, "garagelog-przypomnienia.ics")
 
 
 @router.get("/new")

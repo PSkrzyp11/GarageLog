@@ -69,11 +69,11 @@ def to_csv(header: Sequence[str], rows: Iterable[Sequence[str]]) -> bytes:
     return (BOM + buffer.getvalue()).encode("utf-8")
 
 
-def filename(car: Car, kind: str) -> str:
+def filename(car: Car, kind: str, extension: str = "csv") -> str:
     """'Auto żony' → 'garagelog-auto-zony-serwis.csv' (ASCII only, safe in a header)."""
     ascii_name = unicodedata.normalize("NFKD", car.name).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-") or f"auto-{car.id}"
-    return f"garagelog-{slug}-{kind}.csv"
+    return f"garagelog-{slug}-{kind}.{extension}"
 
 
 def service_csv(db: Session, car: Car) -> bytes:
