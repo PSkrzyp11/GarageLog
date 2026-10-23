@@ -87,9 +87,11 @@ def car_detail(
     db: DbSession,
     kind: str = "",
     year: str = "",
+    q: str = "",
 ) -> Response:
     """The car with its timeline. ?kind=service|fuel|odometer and ?year=2025 filter the list;
-    unknown values are ignored (the filter just shows everything).
+    unknown values are ignored (the filter just shows everything). ?q= searches the entries'
+    texts (see entries_service.filter_timeline).
 
     For an HTMX request (the filters changed) only the timeline fragment is rendered.
     """
@@ -98,6 +100,7 @@ def car_detail(
     selected_kind = next((option for option in EntryKind if option.value == kind), None)
     # Compared as text, never int(year): "²".isdigit() is True, yet int("²") raises (→ 500).
     selected_year = next((option for option in years if str(option) == year), None)
+    query = q.strip()[: entries_service.MAX_QUERY_LENGTH]
 
     return render(
         request,
@@ -106,12 +109,15 @@ def car_detail(
             "user": user,
             "car": car,
             "odometer_km": cars_service.current_odometer_km(db, car),
-            "timeline": entries_service.filter_timeline(timeline, selected_kind, selected_year),
+            "timeline": entries_service.filter_timeline(
+                timeline, selected_kind, selected_year, query
+            ),
             "has_entries": bool(timeline),
             "kinds": list(EntryKind),
             "years": years,
             "selected_kind": selected_kind,
             "selected_year": selected_year,
+            "query": query,
         },
     )
 

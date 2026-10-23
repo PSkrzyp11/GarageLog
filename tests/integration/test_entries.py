@@ -339,3 +339,48 @@ def test_deleting_the_service_entry_deletes_its_invoice(
     post_form(client, delete, {}, form_page=delete)
 
     assert count(db_session, Receipt) == 0
+
+
+# --- Search -----------------------------------------------------------------------------
+
+
+def test_search_finds_entries_regardless_of_case_and_polish_letters(
+    client: TestClient, car_id: int
+) -> None:
+    add_service_entry(client, car_id, title="Wymiana łożyska koła", date="2025-02-02")
+    add_service_entry(
+        client, car_id, title="Wymiana oleju", notes="Castrol 5W30", date="2025-03-03"
+    )
+
+    by_title = car_page(client, car_id, "?q=LOZYSKA")
+    by_notes = car_page(client, car_id, "?q=castrol")
+
+    assert "Wymiana łożyska koła" in by_title and "Wymiana oleju" not in by_title
+    assert "Wymiana oleju" in by_notes and "Wymiana łożyska" not in by_notes
+    assert 'value="LOZYSKA"' in by_title  # the field keeps what was typed
+
+
+def test_search_combines_with_the_other_filters(client: TestClient, car_id: int) -> None:
+    add_service_entry(client, car_id, title="Opony zimowe", date="2024-11-01")
+    add_service_entry(client, car_id, title="Opony letnie", date="2025-04-01")
+
+    page = car_page(client, car_id, "?q=opony&year=2025")
+
+    assert "Opony letnie" in page and "Opony zimowe" not in page
+
+
+def test_search_without_results_says_so(client: TestClient, car_id: int) -> None:
+    add_service_entry(client, car_id, title="Wymiana oleju")
+
+    fragment = client.get(
+        f"/cars/{car_id}", params={"q": "turbosprężarka"}, headers={"HX-Request": "true"}
+    ).text
+
+    assert fragment.lstrip().startswith('<div id="timeline"')
+    assert "Brak wpisów dla wybranych filtrów." in fragment
+
+
+def test_a_very_long_query_is_cut_not_refused(client: TestClient, car_id: int) -> None:
+    response = client.get(f"/cars/{car_id}", params={"q": "olej " * 500})
+
+    assert response.status_code == 200

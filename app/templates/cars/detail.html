@@ -37,12 +37,19 @@
 
   {% if has_entries %}
     {#
-      A plain GET form. With HTMX it updates only the list as soon as a filter changes,
-      and the URL (?kind=…&year=…) still changes, so the view can be bookmarked.
+      A plain GET form. With HTMX it updates only the list as soon as a filter changes (and
+      while typing in the search field, after a short pause), and the URL (?kind=…&year=…&q=…)
+      still changes, so the view can be bookmarked.
     #}
     <form method="get" action="{{ url_for('car_detail', car_id=car.id) }}" class="filters"
           hx-get="{{ url_for('car_detail', car_id=car.id) }}" hx-target="#timeline"
-          hx-swap="outerHTML" hx-push-url="true" hx-trigger="change, submit">
+          hx-swap="outerHTML" hx-push-url="true"
+          hx-trigger="change, submit, input delay:400ms from:#q">
+      <div class="field field-search">
+        <label for="q">Szukaj</label>
+        <input id="q" name="q" type="search" value="{{ query }}" maxlength="100"
+               placeholder="np. klocki, opony, OC" autocomplete="off">
+      </div>
       <div class="field">
         <label for="kind">Rodzaj</label>
         <select id="kind" name="kind">

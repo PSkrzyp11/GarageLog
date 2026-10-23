@@ -26,7 +26,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 - **Auta** — kilka aut na konto, paliwo główne + opcjonalna instalacja LPG; sprzedane auto
   trafia do archiwum: znika z pulpitu, a jego historia zostaje tylko do odczytu.
 - **Historia** — tankowania (pełne / częściowe / po pominiętym tankowaniu), serwis i inne
-  wydatki, odczyty licznika; wspólna oś czasu z filtrem rodzaju i roku.
+  wydatki, odczyty licznika; wspólna oś czasu z filtrem rodzaju i roku oraz wyszukiwarką
+  (np. „klocki”, „OC”), która ignoruje wielkość liter i polskie znaki.
 - **Paragony i faktury** — do tankowania paragon, do wpisu serwisowego faktura albo polisa:
   zdjęcie (także prosto z aparatu telefonu) lub PDF; ze zdjęcia usuwana jest lokalizacja
   i inne metadane.

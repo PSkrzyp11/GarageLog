@@ -293,6 +293,11 @@ summary:focus-visible {
 }
 
 /* HTMX adds .htmx-request while a filter request is running: show that something happens. */
+/* The search field takes the free width of the filter row (and the whole row on a phone). */
+.filters .field-search {
+  flex: 1 1 14rem;
+}
+
 .filters.htmx-request {
   opacity: 0.6;
 }

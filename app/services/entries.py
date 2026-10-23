@@ -5,6 +5,7 @@ checked for ownership by the dependencies in app/deps.py.
 """
 
 import datetime as dt
+import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
@@ -327,11 +328,32 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
     )
 
 
+MAX_QUERY_LENGTH = 100
+
+
+def searchable(text: str) -> str:
+    """'Łożysko KOŁA' → 'lozysko kola'. Search ignores case and Polish letters, so a query
+    typed on a phone without them still finds the entry."""
+    text = text.casefold().replace("ł", "l")  # "ł" has no accent to strip: it's its own letter
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
+def _matches(item: TimelineItem, words: list[str]) -> bool:
+    """Every word of the query appears in the entry's title, category, details or notes."""
+    text = searchable(
+        " ".join(part for part in (item.title, item.badge, item.details, item.notes) if part)
+    )
+    return all(word in text for word in words)
+
+
 def filter_timeline(
-    items: list[TimelineItem], kind: EntryKind | None, year: int | None
+    items: list[TimelineItem], kind: EntryKind | None, year: int | None, query: str = ""
 ) -> list[TimelineItem]:
+    words = searchable(query).split()
     return [
         item
         for item in items
-        if (kind is None or item.kind == kind) and (year is None or item.date.year == year)
+        if (kind is None or item.kind == kind)
+        and (year is None or item.date.year == year)
+        and _matches(item, words)
     ]
