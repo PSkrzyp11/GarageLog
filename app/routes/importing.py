@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request, Response, status
 
-from app.deps import CurrentUser, DbSession, OwnedCar, UploadedFiles
+from app.deps import ActiveCar, CurrentUser, DbSession, UploadedFiles
 from app.services import importing as importing_service
 from app.services.importing import ImportReport
 from app.templating import render
@@ -16,7 +16,7 @@ MAX_ERRORS_SHOWN = 30
 def _page(
     request: Request,
     user: CurrentUser,
-    car: OwnedCar,
+    car: ActiveCar,
     report: ImportReport | None = None,
     message: str | None = None,
 ) -> Response:
@@ -36,13 +36,13 @@ def _page(
 
 
 @router.get("")
-def import_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+def import_page(request: Request, user: CurrentUser, car: ActiveCar) -> Response:
     return _page(request, user, car)
 
 
 @router.post("")
 def import_files(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, files: UploadedFiles
+    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession, files: UploadedFiles
 ) -> Response:
     if not files:
         return _page(request, user, car, message="Wybierz co najmniej jeden plik CSV.")

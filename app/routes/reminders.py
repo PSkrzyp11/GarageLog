@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
-from app.deps import CurrentUser, DbSession, FormData, OwnedCar, OwnedReminder
+from app.deps import ActiveCar, CurrentUser, DbSession, FormData, OwnedCar, OwnedReminder
 from app.models import Car, Reminder, User
 from app.schemas import ReminderForm, form_errors, parse_form
 from app.services import export as export_service
@@ -85,13 +85,13 @@ def all_reminders_calendar(user: CurrentUser, db: DbSession) -> Response:
 
 
 @router.get("/new")
-def new_reminder_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+def new_reminder_page(request: Request, user: CurrentUser, car: ActiveCar) -> Response:
     return _form(request, user, car, {})
 
 
 @router.post("/new")
 def create_reminder(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, data: FormData
+    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession, data: FormData
 ) -> Response:
     try:
         form = parse_form(ReminderForm, data)
@@ -105,7 +105,7 @@ def create_reminder(
 
 @router.get("/{reminder_id}/edit")
 def edit_reminder_page(
-    request: Request, user: CurrentUser, car: OwnedCar, reminder: OwnedReminder
+    request: Request, user: CurrentUser, car: ActiveCar, reminder: OwnedReminder
 ) -> Response:
     values = {
         "title": reminder.title,
@@ -124,7 +124,7 @@ def edit_reminder_page(
 def update_reminder(
     request: Request,
     user: CurrentUser,
-    car: OwnedCar,
+    car: ActiveCar,
     reminder: OwnedReminder,
     db: DbSession,
     data: FormData,
@@ -166,7 +166,7 @@ def _after_status_change(
 
 @router.post("/{reminder_id}/complete")
 def complete_reminder(
-    request: Request, car: OwnedCar, reminder: OwnedReminder, db: DbSession, data: FormData
+    request: Request, car: ActiveCar, reminder: OwnedReminder, db: DbSession, data: FormData
 ) -> Response:
     next_reminder = reminders_service.complete_reminder(db, reminder, car)
     db.commit()
@@ -175,7 +175,7 @@ def complete_reminder(
 
 @router.post("/{reminder_id}/reopen")
 def reopen_reminder(
-    request: Request, car: OwnedCar, reminder: OwnedReminder, db: DbSession, data: FormData
+    request: Request, car: ActiveCar, reminder: OwnedReminder, db: DbSession, data: FormData
 ) -> Response:
     reminders_service.reopen_reminder(db, reminder)
     db.commit()
@@ -184,7 +184,7 @@ def reopen_reminder(
 
 @router.get("/{reminder_id}/delete")
 def delete_reminder_page(
-    request: Request, user: CurrentUser, car: OwnedCar, reminder: OwnedReminder
+    request: Request, user: CurrentUser, car: ActiveCar, reminder: OwnedReminder
 ) -> Response:
     return render(
         request,
@@ -203,7 +203,7 @@ def delete_reminder_page(
 
 @router.post("/{reminder_id}/delete")
 def delete_reminder(
-    request: Request, car: OwnedCar, reminder: OwnedReminder, db: DbSession
+    request: Request, car: ActiveCar, reminder: OwnedReminder, db: DbSession
 ) -> Response:
     reminders_service.delete_reminder(db, reminder)
     db.commit()

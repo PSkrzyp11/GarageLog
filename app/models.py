@@ -170,6 +170,13 @@ class Car(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # Set when the car is moved to the archive (e.g. sold): its history stays readable and
+    # exportable, but it leaves the dashboard and can't be changed until it is restored.
+    archived_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None
 
     @property
     def fuel_types(self) -> list[FuelType]:

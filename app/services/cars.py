@@ -4,6 +4,7 @@ Functions here only flush; the route commits. Access control happens before thes
 (`deps.get_owned_car`), so they can trust the Car they receive.
 """
 
+import datetime as dt
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -44,8 +45,9 @@ def _odometer_values() -> Subquery:
     ).subquery()
 
 
-def list_cars(db: Session, user: User) -> list[CarSummary]:
-    """The user's cars with current mileage, in a single query (no query per car)."""
+def list_cars(db: Session, user: User, archived: bool = False) -> list[CarSummary]:
+    """The user's cars in use (or, with `archived`, the archived ones) with current mileage,
+    in a single query (no query per car)."""
     values = _odometer_values()
     latest = (
         select(values.c.car_id, func.max(values.c.odometer_km).label("odometer_km"))
@@ -55,10 +57,26 @@ def list_cars(db: Session, user: User) -> list[CarSummary]:
     rows = db.execute(
         select(Car, latest.c.odometer_km)
         .outerjoin(latest, latest.c.car_id == Car.id)
-        .where(Car.user_id == user.id)
+        .where(
+            Car.user_id == user.id,
+            Car.archived_at.is_not(None) if archived else Car.archived_at.is_(None),
+        )
         .order_by(func.lower(Car.name))
     ).all()
     return [CarSummary(car=car, odometer_km=odometer_km) for car, odometer_km in rows]
+
+
+def count_archived(db: Session, user: User) -> int:
+    return db.scalar(
+        select(func.count())
+        .select_from(Car)
+        .where(Car.user_id == user.id, Car.archived_at.is_not(None))
+    )
+
+
+def set_archived(db: Session, car: Car, archived: bool) -> None:
+    car.archived_at = dt.datetime.now(dt.UTC) if archived else None
+    db.flush()
 
 
 def current_odometer_km(db: Session, car: Car) -> int | None:

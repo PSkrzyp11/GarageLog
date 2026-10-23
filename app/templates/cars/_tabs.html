@@ -1,4 +1,5 @@
-{# Navigation between the pages of one car. `active` is "history", "costs" or "reminders". #}
+{# Navigation between the pages of one car. `active` is "history", "costs" or "reminders".
+   Every car page shows it, so it also carries the notice for an archived car. #}
 {% macro car_tabs(car, active) %}
 <nav class="tabs" aria-label="{{ car.name }}">
   <a href="{{ url_for('car_detail', car_id=car.id) }}"
@@ -8,4 +9,14 @@
   <a href="{{ url_for('car_reminders', car_id=car.id) }}"
      {% if active == "reminders" %}aria-current="page"{% endif %}>Przypomnienia</a>
 </nav>
+{% if car.is_archived %}
+  <div class="alert alert-info archived-notice">
+    <p>To auto jest w archiwum od {{ car.archived_at | local_date | pl_date }}. Historię można
+      przeglądać i eksportować, ale nie zmieniać.</p>
+    <form method="post" action="{{ url_for('restore_car', car_id=car.id) }}" class="inline-form">
+      {{ csrf_input(request) }}
+      <button type="submit" class="button button-secondary button-small">Przywróć z archiwum</button>
+    </form>
+  </div>
+{% endif %}
 {% endmacro %}

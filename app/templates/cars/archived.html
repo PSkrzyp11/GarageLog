@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Archiwum aut — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('dashboard') }}">← Twój garaż</a></p>
+
+<h1>Archiwum aut</h1>
+<p class="muted">Auta, których już nie używasz (np. sprzedane). Ich historię można przeglądać
+  i eksportować, a z przypomnień i kosztów na pulpicie zniknęły.</p>
+
+{% if cars %}
+  <ul class="car-list">
+    {% for item in cars %}
+      <li class="card car-card">
+        <h2><a href="{{ url_for('car_detail', car_id=item.car.id) }}">{{ item.car.name }}</a></h2>
+        <p class="muted">{{ item.car | car_summary }}</p>
+        <p class="car-odometer">
+          {% if item.odometer_km is not none %}{{ item.odometer_km | km }}{% else %}Brak danych o przebiegu{% endif %}
+        </p>
+        <p class="muted">W archiwum od {{ item.car.archived_at | local_date | pl_date }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="card muted">Archiwum jest puste.</p>
+{% endif %}
+{% endblock %}

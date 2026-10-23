@@ -37,8 +37,10 @@
   Pobierz całą historię do Excela:
   <a href="{{ url_for('export_service_entries', car_id=car.id) }}">serwis i wydatki (CSV)</a> ·
   <a href="{{ url_for('export_fuel_entries', car_id=car.id) }}">tankowania (CSV)</a>
+  {% if not car.is_archived %}
   <br>Masz takie pliki z innego konta lub komputera?
   <a href="{{ url_for('import_page', car_id=car.id) }}">Import z CSV</a>
+  {% endif %}
 </p>
 
 {% include "cars/_costs_summary.html" %}

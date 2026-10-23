@@ -22,7 +22,7 @@
             <span class="badge">{{ item.badge }}</span>
           </div>
           <div class="timeline-main">
-            <h3><a href="{{ edit_url }}">{{ item.title }}</a></h3>
+            <h3>{% if car.is_archived %}{{ item.title }}{% else %}<a href="{{ edit_url }}">{{ item.title }}</a>{% endif %}</h3>
             {% if item.details %}<p class="timeline-details">{{ item.details }}</p>{% endif %}
             {% if item.has_receipt %}
               <p><a href="{{ url_for('fuel_receipt', car_id=car.id, fuel_id=item.id) }}">Paragon</a></p>
@@ -38,6 +38,7 @@
             Without HTMX the form posts normally and the page reloads; with HTMX only this
             row is removed.
           #}
+          {% if not car.is_archived %}
           <details class="row-delete">
             <summary>Usuń<span class="visually-hidden"> wpis „{{ item.title }}” z {{ item.date | pl_date }}</span></summary>
             <form method="post" action="{{ delete_url }}" class="inline-form"
@@ -47,6 +48,7 @@
               <button type="submit" class="button button-danger button-small">Tak, usuń</button>
             </form>
           </details>
+          {% endif %}
         </li>
       {% endfor %}
     </ol>

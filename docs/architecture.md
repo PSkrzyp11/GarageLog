@@ -68,6 +68,7 @@ erDiagram
         varchar name "UNIQUE z user_id"
         varchar primary_fuel "petrol | diesel"
         bool has_lpg
+        timestamptz archived_at "NULL = w użyciu"
     }
     odometer_readings {
         int id PK
