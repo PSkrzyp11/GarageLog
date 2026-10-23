@@ -9,11 +9,11 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import delete, select
+from sqlalchemy import ColumnElement, delete, select
 from sqlalchemy.orm import Session
 
 from app.formatting import format_liters, format_price_per_liter
-from app.models import Car, FuelEntry, FuelReceipt, FuelType, OdometerReading, ServiceEntry
+from app.models import Car, FuelEntry, FuelType, OdometerReading, Receipt, ServiceEntry
 from app.odometer import OdometerPoint, find_conflict
 from app.receipts import PreparedReceipt
 from app.schemas import FuelEntryForm, OdometerReadingForm, ServiceEntryForm
@@ -187,31 +187,39 @@ def update_reading(
     db.flush()
 
 
-# --- Receipts of refuels ----------------------------------------------------------------
+# --- Receipts and invoices -------------------------------------------------------------
 
 
-def save_receipt(db: Session, entry: FuelEntry, receipt: PreparedReceipt) -> None:
-    """Attach a receipt (already cleaned by app/receipts.py), replacing the previous one."""
+def _receipt_of(entry: FuelEntry | ServiceEntry) -> ColumnElement[bool]:
+    """The receipt row of a refuel, or the invoice row of a service entry."""
+    if isinstance(entry, FuelEntry):
+        return Receipt.fuel_entry_id == entry.id
+    return Receipt.service_entry_id == entry.id
+
+
+def save_receipt(db: Session, entry: FuelEntry | ServiceEntry, receipt: PreparedReceipt) -> None:
+    """Attach a file (already cleaned by app/receipts.py), replacing the previous one."""
     remove_receipt(db, entry)
-    db.add(
-        FuelReceipt(fuel_entry_id=entry.id, content_type=receipt.content_type, data=receipt.data)
+    parent = (
+        {"fuel_entry_id": entry.id}
+        if isinstance(entry, FuelEntry)
+        else {"service_entry_id": entry.id}
     )
+    db.add(Receipt(**parent, content_type=receipt.content_type, data=receipt.data))
     db.flush()
 
 
-def remove_receipt(db: Session, entry: FuelEntry) -> None:
-    db.execute(delete(FuelReceipt).where(FuelReceipt.fuel_entry_id == entry.id))
+def remove_receipt(db: Session, entry: FuelEntry | ServiceEntry) -> None:
+    db.execute(delete(Receipt).where(_receipt_of(entry)))
 
 
-def get_receipt(db: Session, entry: FuelEntry) -> FuelReceipt | None:
-    return db.scalars(
-        select(FuelReceipt).where(FuelReceipt.fuel_entry_id == entry.id)
-    ).one_or_none()
+def get_receipt(db: Session, entry: FuelEntry | ServiceEntry) -> Receipt | None:
+    return db.scalars(select(Receipt).where(_receipt_of(entry))).one_or_none()
 
 
-def receipt_content_type(db: Session, entry: FuelEntry) -> str | None:
-    """Whether the refuel has a receipt (and what kind), without loading the file."""
-    return db.scalar(select(FuelReceipt.content_type).where(FuelReceipt.fuel_entry_id == entry.id))
+def receipt_content_type(db: Session, entry: FuelEntry | ServiceEntry) -> str | None:
+    """Whether the entry has a file (and what kind), without loading the file."""
+    return db.scalar(select(Receipt.content_type).where(_receipt_of(entry)))
 
 
 def delete_entry(db: Session, entry: ServiceEntry | FuelEntry | OdometerReading) -> None:
@@ -254,6 +262,20 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
     Ordered by date, then mileage, then ID, so several entries from the same day still appear
     in a stable, sensible order (entries without mileage go last within their day).
     """
+    fuel_with_receipt = set(
+        db.scalars(
+            select(Receipt.fuel_entry_id)
+            .join(FuelEntry, FuelEntry.id == Receipt.fuel_entry_id)
+            .where(FuelEntry.car_id == car.id)
+        )
+    )
+    service_with_invoice = set(
+        db.scalars(
+            select(Receipt.service_entry_id)
+            .join(ServiceEntry, ServiceEntry.id == Receipt.service_entry_id)
+            .where(ServiceEntry.car_id == car.id)
+        )
+    )
     items = [
         TimelineItem(
             kind=EntryKind.SERVICE,
@@ -264,16 +286,10 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
             badge=entry.category.label,
             cost_pln=entry.cost_pln,
             notes=entry.notes,
+            has_receipt=entry.id in service_with_invoice,
         )
         for entry in db.scalars(select(ServiceEntry).where(ServiceEntry.car_id == car.id))
     ]
-    with_receipt = set(
-        db.scalars(
-            select(FuelReceipt.fuel_entry_id)
-            .join(FuelEntry, FuelEntry.id == FuelReceipt.fuel_entry_id)
-            .where(FuelEntry.car_id == car.id)
-        )
-    )
     items += [
         TimelineItem(
             kind=EntryKind.FUEL,
@@ -284,7 +300,7 @@ def car_timeline(db: Session, car: Car) -> list[TimelineItem]:
             badge="Tankowanie",
             cost_pln=entry.total_cost_pln,
             details=_fuel_details(entry),
-            has_receipt=entry.id in with_receipt,
+            has_receipt=entry.id in fuel_with_receipt,
         )
         for entry in db.scalars(select(FuelEntry).where(FuelEntry.car_id == car.id))
     ]

@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.formatting import format_km
-from app.models import FuelEntry, FuelReceipt, FuelType
+from app.models import FuelEntry, FuelType, Receipt
 from app.timeutils import today
 from tests.integration.helpers import (
     add_car,
@@ -225,9 +225,9 @@ def test_dashboard_links_each_car_to_a_new_refuel(client: TestClient, car_id: in
 PDF_BYTES = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n"
 
 
-def receipt_of(db: Session, fuel_id: int) -> FuelReceipt | None:
+def receipt_of(db: Session, fuel_id: int) -> Receipt | None:
     db.expire_all()
-    return db.scalars(select(FuelReceipt).where(FuelReceipt.fuel_entry_id == fuel_id)).one_or_none()
+    return db.scalars(select(Receipt).where(Receipt.fuel_entry_id == fuel_id)).one_or_none()
 
 
 def add_refuel_with_receipt(
@@ -296,7 +296,7 @@ def test_after_a_form_error_the_receipt_must_be_chosen_again(
 
     assert response.status_code == 422
     assert "wybierz plik paragonu jeszcze raz" in response.text
-    assert count(db_session, FuelReceipt) == 0
+    assert count(db_session, Receipt) == 0
 
 
 def test_receipt_can_be_replaced_and_removed(
@@ -335,7 +335,7 @@ def test_deleting_the_refuel_deletes_its_receipt(
 
     post_form(client, url, {}, form_page=url)
 
-    assert count(db_session, FuelReceipt) == 0
+    assert count(db_session, Receipt) == 0
 
 
 def test_refuel_without_receipt_has_no_receipt_page(
@@ -359,7 +359,7 @@ def test_refuel_form_accepts_a_photo_larger_than_other_forms(
     response = add_refuel_with_receipt(client, car_id, ("zdjecie.png", png.getvalue(), "image/png"))
 
     assert response.status_code == 303
-    assert count(db_session, FuelReceipt) == 1
+    assert count(db_session, Receipt) == 1
 
 
 def test_files_over_the_limit_are_refused(client: TestClient, car_id: int) -> None:

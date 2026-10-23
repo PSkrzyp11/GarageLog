@@ -26,6 +26,7 @@ ALLOWED_WHEN_ARCHIVED = {
     ("GET", "/cars/{car_id}/export/service.csv"),
     ("GET", "/cars/{car_id}/export/fuel.csv"),
     ("GET", "/cars/{car_id}/fuel/{fuel_id}/receipt"),
+    ("GET", "/cars/{car_id}/service/{entry_id}/receipt"),
     ("GET", "/cars/{car_id}/reminders"),
     ("GET", "/cars/{car_id}/reminders/calendar.ics"),
     ("GET", "/cars/{car_id}/delete"),

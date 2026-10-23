@@ -62,6 +62,33 @@
   {% endif %}
 {% endmacro %}
 
+{# A photo or PDF attached to an entry (multipart form). `noun` is how the file is called in
+   messages ("paragon", "dokument"); `receipt_type` is the current file's type, if any. #}
+{% macro receipt_field(label, noun, receipt_url, receipt_type, jpeg, error, remove_checked) %}
+<div class="field">
+  <label for="receipt">{{ label }} <span class="muted">(opcjonalnie)</span></label>
+  {% if receipt_type %}
+    <p class="receipt-current">
+      {% if receipt_type == jpeg %}
+        <a href="{{ receipt_url }}"><img src="{{ receipt_url }}" alt="Obecny {{ noun }}" class="receipt-thumb"></a>
+      {% else %}
+        <a href="{{ receipt_url }}">Pobierz obecny {{ noun }} (PDF)</a>
+      {% endif %}
+    </p>
+  {% endif %}
+  {# On a phone "image/*" also offers the camera. The server checks the real type anyway. #}
+  <input id="receipt" name="receipt" type="file" accept="image/*,application/pdf"
+         {% if error %}aria-invalid="true"{% endif %}
+         aria-describedby="receipt-help">
+  {{ help_text("receipt", error,
+               ("Wybierz plik, żeby zastąpić obecny. " if receipt_type else "")
+               ~ "Zdjęcie albo PDF, do 10 MB. Ze zdjęcia usuwamy lokalizację i inne metadane.") }}
+</div>
+{% if receipt_type %}
+  {{ checkbox("remove_receipt", "Usuń " ~ noun, checked=remove_checked) }}
+{% endif %}
+{% endmacro %}
+
 {% macro form_alert(message) %}
 {% if message %}
 <div class="alert alert-error" role="alert">{{ message }}</div>

@@ -2,15 +2,19 @@
 
 ## Kontekst
 
-Do tankowania można dołączyć zdjęcie albo PDF paragonu. Plik przysyła użytkownik, często
+Do tankowania można dołączyć zdjęcie albo PDF paragonu, a do wpisu serwisowego — faktury
+lub polisy. Plik przysyła użytkownik, często
 prosto z aparatu telefonu, więc trzeba zdecydować, gdzie go trzymać i jak go bezpiecznie
 pokazywać. Zdjęcia z telefonu mają w metadanych EXIF m.in. współrzędne GPS miejsca zrobienia.
 
 ## Decyzja
 
-- **Gdzie:** w PostgreSQL, w osobnej tabeli `fuel_receipts` (`bytea`), najwyżej jeden plik na
-  tankowanie. Lista tankowań nigdy nie wczytuje plików. Codzienny `pg_dump` obejmuje je bez
-  zmian w kopiach zapasowych, a usunięcie tankowania lub auta usuwa plik (`ON DELETE CASCADE`).
+- **Gdzie:** w PostgreSQL, w osobnej tabeli `receipts` (`bytea`), najwyżej jeden plik na
+  wpis. Wiersz należy dokładnie do jednego tankowania albo wpisu serwisowego (dwa klucze obce
+  i `CHECK (num_nonnulls(...) = 1)`) — jedna tabela i jeden kod zamiast dwóch prawie takich
+  samych. (Najpierw była tylko `fuel_receipts`; migracja zmieniła jej nazwę, zachowując pliki.)
+  Listy wpisów nigdy nie wczytują plików. Codzienny `pg_dump` obejmuje je bez zmian w kopiach
+  zapasowych, a usunięcie wpisu lub auta usuwa plik (`ON DELETE CASCADE`).
 - **Typ pliku:** rozpoznawany po zawartości (Pillow / nagłówek `%PDF-`), nie po nazwie ani po
   typie podanym przez przeglądarkę.
 - **Zdjęcia:** dekodowane i zapisywane od nowa jako JPEG (do 2000 px). Znikają wszystkie

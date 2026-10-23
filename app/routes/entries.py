@@ -25,7 +25,7 @@ from app.formatting import (
     format_pln,
 )
 from app.models import Car, FuelEntry, OdometerReading, ServiceCategory, ServiceEntry, User
-from app.receipts import JPEG, ReceiptError, prepare_receipt
+from app.receipts import JPEG, PreparedReceipt, ReceiptError, prepare_receipt
 from app.schemas import (
     FuelEntryForm,
     OdometerReadingForm,
@@ -116,6 +116,19 @@ def _errors(
     return errors
 
 
+def _update_receipt(
+    db: DbSession,
+    entry: FuelEntry | ServiceEntry,
+    receipt: PreparedReceipt | None,
+    data: Mapping[str, str],
+) -> None:
+    """After editing an entry: a newly chosen file replaces the old one; "Usuń" removes it."""
+    if receipt is not None:
+        entries_service.save_receipt(db, entry, receipt)
+    elif data.get("remove_receipt") == "on":
+        entries_service.remove_receipt(db, entry)
+
+
 # --- Service entries --------------------------------------------------------------------
 
 
@@ -126,8 +139,9 @@ def _service_form(
     values: Mapping[str, str],
     entry: ServiceEntry | None = None,
     errors: Mapping[str, str] | None = None,
+    receipt_type: str | None = None,
 ) -> Response:
-    extra = {"category_options": CATEGORY_OPTIONS}
+    extra = {"category_options": CATEGORY_OPTIONS, "receipt_type": receipt_type, "jpeg": JPEG}
     return _form_page(request, "entries/service_form.html", user, car, values, entry, errors, extra)
 
 
@@ -139,21 +153,29 @@ def new_service_entry_page(request: Request, user: CurrentUser, car: ActiveCar) 
 
 @router.post("/service/new")
 def create_service_entry(
-    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession, data: FormData
+    request: Request,
+    user: CurrentUser,
+    car: ActiveCar,
+    db: DbSession,
+    data: FormData,
+    upload: ReceiptUpload,
 ) -> Response:
     try:
         form = parse_form(ServiceEntryForm, data)
-        entries_service.create_service_entry(db, car, form)
-    except (ValidationError, EntryValidationError) as exc:
-        return _service_form(request, user, car, data, errors=_errors(exc))
+        receipt = prepare_receipt(upload) if upload is not None else None
+        entry = entries_service.create_service_entry(db, car, form)
+    except (ValidationError, EntryValidationError, ReceiptError) as exc:
+        return _service_form(request, user, car, data, errors=_errors(exc, upload))
 
+    if receipt is not None:
+        entries_service.save_receipt(db, entry, receipt)
     db.commit()
     return _back_to_car(request, car)
 
 
 @router.get("/service/{entry_id}/edit")
 def edit_service_entry_page(
-    request: Request, user: CurrentUser, car: ActiveCar, entry: OwnedServiceEntry
+    request: Request, user: CurrentUser, car: ActiveCar, entry: OwnedServiceEntry, db: DbSession
 ) -> Response:
     values = {
         "date": entry.date.isoformat(),
@@ -163,7 +185,8 @@ def edit_service_entry_page(
         "notes": entry.notes or "",
         "cost_pln": decimal_for_input(entry.cost_pln),
     }
-    return _service_form(request, user, car, values, entry=entry)
+    receipt_type = entries_service.receipt_content_type(db, entry)
+    return _service_form(request, user, car, values, entry=entry, receipt_type=receipt_type)
 
 
 @router.post("/service/{entry_id}/edit")
@@ -174,15 +197,27 @@ def update_service_entry(
     entry: OwnedServiceEntry,
     db: DbSession,
     data: FormData,
+    upload: ReceiptUpload,
 ) -> Response:
     try:
         form = parse_form(ServiceEntryForm, data)
+        receipt = prepare_receipt(upload) if upload is not None else None
         entries_service.update_service_entry(db, entry, car, form)
-    except (ValidationError, EntryValidationError) as exc:
-        return _service_form(request, user, car, data, entry=entry, errors=_errors(exc))
+    except (ValidationError, EntryValidationError, ReceiptError) as exc:
+        receipt_type = entries_service.receipt_content_type(db, entry)
+        errors = _errors(exc, upload)
+        return _service_form(
+            request, user, car, data, entry=entry, errors=errors, receipt_type=receipt_type
+        )
 
+    _update_receipt(db, entry, receipt, data)
     db.commit()
     return _back_to_car(request, car)
+
+
+@router.get("/service/{entry_id}/receipt")
+def service_receipt(entry: OwnedServiceEntry, db: DbSession) -> Response:
+    return _receipt_download(db, entry, name="dokument")
 
 
 @router.get("/service/{entry_id}/delete")
@@ -313,16 +348,17 @@ def update_fuel_entry(
             request, user, car, data, entry=entry, errors=errors, receipt_type=receipt_type
         )
 
-    if receipt is not None:
-        entries_service.save_receipt(db, entry, receipt)
-    elif data.get("remove_receipt") == "on":
-        entries_service.remove_receipt(db, entry)
+    _update_receipt(db, entry, receipt, data)
     db.commit()
     return _back_to_car(request, car)
 
 
 @router.get("/fuel/{fuel_id}/receipt")
 def fuel_receipt(entry: OwnedFuelEntry, db: DbSession) -> Response:
+    return _receipt_download(db, entry, name="paragon")
+
+
+def _receipt_download(db: DbSession, entry: FuelEntry | ServiceEntry, name: str) -> Response:
     receipt = entries_service.get_receipt(db, entry)
     if receipt is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -330,7 +366,7 @@ def fuel_receipt(entry: OwnedFuelEntry, db: DbSession) -> Response:
     # whatever it contains is never shown as a page of this site.
     is_photo = receipt.content_type == JPEG
     disposition = "inline" if is_photo else "attachment"
-    filename = f"paragon-{entry.date.isoformat()}.{'jpg' if is_photo else 'pdf'}"
+    filename = f"{name}-{entry.date.isoformat()}.{'jpg' if is_photo else 'pdf'}"
     return Response(
         receipt.data,
         media_type=receipt.content_type,

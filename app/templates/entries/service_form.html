@@ -12,7 +12,8 @@
   <h1>{{ heading }}</h1>
   <p class="muted">Naprawa, przegląd, opony, ubezpieczenie — każdy wydatek poza paliwem.</p>
 
-  <form method="post" class="form"
+  {# multipart: the form may carry an invoice or another document. #}
+  <form method="post" class="form" enctype="multipart/form-data"
         action="{{ url_for('create_service_entry', car_id=car.id) if is_new
                    else url_for('update_service_entry', car_id=car.id, entry_id=entry.id) }}">
     {{ csrf_input(request) }}
@@ -40,6 +41,10 @@
 
     {{ forms.textarea("notes", "Notatki", value=values.get("notes", ""), error=errors.get("notes"),
                       hint="np. warsztat, numer faktury, użyte części", maxlength=2000) }}
+
+    {% set receipt_url = url_for('service_receipt', car_id=car.id, entry_id=entry.id) if receipt_type %}
+    {{ forms.receipt_field("Faktura lub inny dokument", "dokument", receipt_url, receipt_type, jpeg,
+                           errors.get("receipt"), values.get("remove_receipt") == "on") }}
 
     <div class="form-actions">
       <button type="submit" class="button">{{ "Dodaj wpis" if is_new else "Zapisz zmiany" }}</button>

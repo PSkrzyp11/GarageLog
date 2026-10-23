@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.main import create_app
-from app.models import Car, FuelEntry, FuelReceipt, OdometerReading, Reminder, ServiceEntry
+from app.models import Car, FuelEntry, OdometerReading, Receipt, Reminder, ServiceEntry
 from tests.integration.helpers import (
     OTHER_EMAIL,
     add_car,
@@ -37,6 +37,8 @@ from tests.integration.helpers import (
     service_form,
 )
 
+PDF_BYTES = b"%PDF-1.7\n%%EOF\n"
+
 OWNED_ROUTES = [
     ("GET", "/cars/{car_id}"),
     ("GET", "/cars/{car_id}/costs"),
@@ -56,6 +58,7 @@ OWNED_ROUTES = [
     ("POST", "/cars/{car_id}/service/{entry_id}/edit"),
     ("GET", "/cars/{car_id}/service/{entry_id}/delete"),
     ("POST", "/cars/{car_id}/service/{entry_id}/delete"),
+    ("GET", "/cars/{car_id}/service/{entry_id}/receipt"),
     ("GET", "/cars/{car_id}/fuel/new"),
     ("POST", "/cars/{car_id}/fuel/new"),
     ("GET", "/cars/{car_id}/fuel/{fuel_id}/edit"),
@@ -116,7 +119,13 @@ def victim_data(client: TestClient) -> VictimData:
     entry_id = add_service_entry(client, car_id, title="Wymiana oleju")
     reading_id = add_reading(client, car_id, date="2025-01-01", odometer_km="90000")
     fuel_id = add_fuel_entry(client, car_id, date="2025-02-01", odometer_km="95000")
-    # With a receipt, so a 404 on the receipt URL comes from the ownership check.
+    # With a receipt and an invoice, so a 404 on their URLs comes from the ownership check.
+    post_with_file(
+        client,
+        f"/cars/{car_id}/service/{entry_id}/edit",
+        service_form(title="Wymiana oleju"),
+        ("faktura.pdf", PDF_BYTES, "application/pdf"),
+    )
     post_with_file(
         client,
         f"/cars/{car_id}/fuel/{fuel_id}/edit",
@@ -147,7 +156,8 @@ def assert_victim_data_unchanged(db: Session, victim: VictimData, archived: bool
     assert entry is not None and entry.title == "Wymiana oleju"
     assert reading is not None and reading.odometer_km == 90_000
     assert fuel is not None and fuel.liters == Decimal("42.50")
-    assert db.scalar(select(FuelReceipt.id).where(FuelReceipt.fuel_entry_id == fuel.id))
+    assert db.scalar(select(Receipt.id).where(Receipt.fuel_entry_id == fuel.id))
+    assert db.scalar(select(Receipt.id).where(Receipt.service_entry_id == entry.id))
     assert reminder is not None and reminder.title == "Przegląd"
     assert reminder.completed_at is None  # "complete" by someone else must not work either
 

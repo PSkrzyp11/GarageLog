@@ -44,10 +44,13 @@ HSTS_HEADER = "max-age=31536000"
 
 # The largest form (a 2 000-character note in Polish, URL-encoded) is about 20 KB.
 MAX_REQUEST_BODY_BYTES = 64 * 1024
-# Only the forms that carry a file get a larger limit: the refuel forms (a receipt) and the
-# CSV import.
+# Only the forms that carry a file get a larger limit: the refuel and service forms (a receipt
+# or an invoice) and the CSV import.
 UPLOAD_LIMITS = [
-    (re.compile(r"/cars/\d+/fuel/(new|\d+/edit)"), MAX_RECEIPT_BYTES + MAX_REQUEST_BODY_BYTES),
+    (
+        re.compile(r"/cars/\d+/(fuel|service)/(new|\d+/edit)"),
+        MAX_RECEIPT_BYTES + MAX_REQUEST_BODY_BYTES,
+    ),
     (re.compile(r"/cars/\d+/import"), 2 * MAX_CSV_BYTES + MAX_REQUEST_BODY_BYTES),  # two files
 ]
 

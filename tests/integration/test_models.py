@@ -15,6 +15,9 @@ from app.models import (
     FuelType,
     OdometerReading,
     PrimaryFuel,
+    Receipt,
+    ServiceCategory,
+    ServiceEntry,
     User,
     UserSession,
 )
@@ -183,3 +186,36 @@ def test_deleting_user_deletes_their_sessions(db_session: Session) -> None:
 
     # ON DELETE CASCADE is enforced by PostgreSQL, not by the ORM.
     assert db_session.scalar(select(func.count()).select_from(UserSession)) == 0
+
+
+@pytest.mark.parametrize("parents", ["none", "both"])
+def test_a_receipt_belongs_to_exactly_one_entry(db_session: Session, parents: str) -> None:
+    user = make_user()
+    db_session.add(user)
+    db_session.flush()
+    car = Car(user_id=user.id, name="Golf", primary_fuel=PrimaryFuel.PETROL)
+    db_session.add(car)
+    db_session.flush()
+    fuel = FuelEntry(
+        car_id=car.id,
+        date=date(2025, 1, 1),
+        odometer_km=1000,
+        fuel_type=FuelType.PETROL,
+        liters=Decimal("40"),
+        total_cost_pln=Decimal("250"),
+        is_full_tank=True,
+    )
+    service = ServiceEntry(
+        car_id=car.id,
+        date=date(2025, 1, 2),
+        category=ServiceCategory.REPAIR,
+        title="Naprawa",
+        cost_pln=Decimal("100"),
+    )
+    db_session.add_all([fuel, service])
+    db_session.flush()
+    owners = {"none": {}, "both": {"fuel_entry_id": fuel.id, "service_entry_id": service.id}}
+    db_session.add(Receipt(content_type="application/pdf", data=b"%PDF-", **owners[parents]))
+
+    with pytest.raises(IntegrityError, match="ck_receipts_one_entry"):
+        db_session.commit()

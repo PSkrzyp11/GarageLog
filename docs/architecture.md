@@ -47,7 +47,8 @@ erDiagram
     cars ||--o{ odometer_readings : "ma"
     cars ||--o{ service_entries : "ma"
     cars ||--o{ fuel_entries : "ma"
-    fuel_entries ||--o| fuel_receipts : "paragon"
+    fuel_entries ||--o| receipts : "paragon"
+    service_entries ||--o| receipts : "faktura"
     cars ||--o{ reminders : "ma"
     reminders |o--o| reminders : "następne (cykliczne)"
 
@@ -95,9 +96,10 @@ erDiagram
         bool is_full_tank
         bool missed_previous
     }
-    fuel_receipts {
+    receipts {
         int id PK
-        int fuel_entry_id FK "UNIQUE"
+        int fuel_entry_id FK "UNIQUE, albo"
+        int service_entry_id FK "UNIQUE (CHECK: dokładnie jedno)"
         varchar content_type "image/jpeg | application/pdf"
         bytea data "zdjęcie bez metadanych"
     }
