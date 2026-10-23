@@ -12,7 +12,9 @@
 <section class="card">
   <div class="page-header">
     <h1>{{ car.name }}</h1>
-    <a href="{{ url_for('edit_car_page', car_id=car.id) }}">Edytuj auto</a>
+    {% if not car.is_archived %}
+      <a href="{{ url_for('edit_car_page', car_id=car.id) }}">Edytuj auto</a>
+    {% endif %}
   </div>
   <p class="muted">{{ car | car_summary }}</p>
 
@@ -21,11 +23,13 @@
     {% include "cars/_odometer.html" %}
   </dl>
 
+  {% if not car.is_archived %}
   <div class="form-actions entry-actions">
     <a class="button" href="{{ url_for('new_fuel_entry_page', car_id=car.id) }}">+ Tankowanie</a>
     <a class="button" href="{{ url_for('new_service_entry_page', car_id=car.id) }}">+ Serwis lub wydatek</a>
     <a class="button button-secondary" href="{{ url_for('new_reading_page', car_id=car.id) }}">+ Odczyt licznika</a>
   </div>
+  {% endif %}
 </section>
 
 <section class="timeline-section">
@@ -64,7 +68,14 @@
   {% include "cars/_timeline.html" %}
 </section>
 
-<p class="danger-zone">
+<div class="danger-zone">
+  {% if not car.is_archived %}
+    <form method="post" action="{{ url_for('archive_car', car_id=car.id) }}" class="inline-form">
+      {{ csrf_input(request) }}
+      <button type="submit" class="button-link">Przenieś do archiwum</button>
+    </form>
+    <span class="muted">(np. po sprzedaży — historia zostanie, auto zniknie z pulpitu)</span> ·
+  {% endif %}
   <a href="{{ url_for('delete_car_page', car_id=car.id) }}">Usuń auto</a>
-</p>
+</div>
 {% endblock %}

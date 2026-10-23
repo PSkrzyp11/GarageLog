@@ -25,6 +25,7 @@ def dashboard(request: Request, user: CurrentUser, db: DbSession) -> HTMLRespons
         {
             "user": user,
             "cars": cars_service.list_cars(db, user),
+            "archived_count": cars_service.count_archived(db, user),
             "year": current_year,
             "year_costs": costs_service.costs_since(db, user, dt.date(current_year, 1, 1)),
             "urgent_reminders": reminders_service.reminders_needing_attention(db, user),

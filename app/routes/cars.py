@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
-from app.deps import CurrentUser, DbSession, FormData, OwnedCar
+from app.deps import ActiveCar, CurrentUser, DbSession, FormData, OwnedCar
 from app.models import Car, FuelType, PrimaryFuel, User
 from app.schemas import CarCreateForm, CarForm, form_errors, parse_form
 from app.services import cars as cars_service
@@ -46,7 +46,17 @@ def _redirect_to_car(request: Request, car: Car) -> RedirectResponse:
     return RedirectResponse(request.url_for("car_detail", car_id=car.id), status.HTTP_303_SEE_OTHER)
 
 
-# /cars/new is declared before /cars/{car_id}, so "new" is never taken for a car ID.
+# /cars/new and /cars/archived are declared before /cars/{car_id}, so these words are never
+# taken for a car ID.
+@router.get("/archived")
+def archived_cars(request: Request, user: CurrentUser, db: DbSession) -> Response:
+    return render(
+        request,
+        "cars/archived.html",
+        {"user": user, "cars": cars_service.list_cars(db, user, archived=True)},
+    )
+
+
 @router.get("/new")
 def new_car_page(request: Request, user: CurrentUser) -> Response:
     return _car_form(request, user, {"primary_fuel": PrimaryFuel.PETROL.value})
@@ -137,7 +147,7 @@ def car_costs(
 
 
 @router.get("/{car_id}/edit")
-def edit_car_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+def edit_car_page(request: Request, user: CurrentUser, car: ActiveCar) -> Response:
     values = {
         "name": car.name,
         "make": car.make or "",
@@ -152,7 +162,7 @@ def edit_car_page(request: Request, user: CurrentUser, car: OwnedCar) -> Respons
 
 @router.post("/{car_id}/edit")
 def update_car(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, data: FormData
+    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession, data: FormData
 ) -> Response:
     try:
         form = parse_form(CarForm, data)
@@ -164,6 +174,21 @@ def update_car(
     except cars_service.CarNameTakenError:
         return _car_form(request, user, data, car=car, errors={"name": NAME_TAKEN_MESSAGE})
 
+    db.commit()
+    return _redirect_to_car(request, car)
+
+
+@router.post("/{car_id}/archive")
+def archive_car(request: Request, car: OwnedCar, db: DbSession) -> Response:
+    """E.g. a sold car: off the dashboard, its history kept read-only."""
+    cars_service.set_archived(db, car, archived=True)
+    db.commit()
+    return _redirect_to_car(request, car)
+
+
+@router.post("/{car_id}/restore")
+def restore_car(request: Request, car: OwnedCar, db: DbSession) -> Response:
+    cars_service.set_archived(db, car, archived=False)
     db.commit()
     return _redirect_to_car(request, car)
 

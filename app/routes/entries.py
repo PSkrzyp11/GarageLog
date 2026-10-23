@@ -8,10 +8,10 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
 from app.deps import (
+    ActiveCar,
     CurrentUser,
     DbSession,
     FormData,
-    OwnedCar,
     OwnedFuelEntry,
     OwnedReading,
     OwnedServiceEntry,
@@ -132,14 +132,14 @@ def _service_form(
 
 
 @router.get("/service/new")
-def new_service_entry_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+def new_service_entry_page(request: Request, user: CurrentUser, car: ActiveCar) -> Response:
     defaults = {"date": today().isoformat(), "category": ServiceCategory.MAINTENANCE.value}
     return _service_form(request, user, car, defaults)
 
 
 @router.post("/service/new")
 def create_service_entry(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, data: FormData
+    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession, data: FormData
 ) -> Response:
     try:
         form = parse_form(ServiceEntryForm, data)
@@ -153,7 +153,7 @@ def create_service_entry(
 
 @router.get("/service/{entry_id}/edit")
 def edit_service_entry_page(
-    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedServiceEntry
+    request: Request, user: CurrentUser, car: ActiveCar, entry: OwnedServiceEntry
 ) -> Response:
     values = {
         "date": entry.date.isoformat(),
@@ -170,7 +170,7 @@ def edit_service_entry_page(
 def update_service_entry(
     request: Request,
     user: CurrentUser,
-    car: OwnedCar,
+    car: ActiveCar,
     entry: OwnedServiceEntry,
     db: DbSession,
     data: FormData,
@@ -187,7 +187,7 @@ def update_service_entry(
 
 @router.get("/service/{entry_id}/delete")
 def delete_service_entry_page(
-    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedServiceEntry
+    request: Request, user: CurrentUser, car: ActiveCar, entry: OwnedServiceEntry
 ) -> Response:
     return _delete_page(
         request,
@@ -203,7 +203,7 @@ def delete_service_entry_page(
 
 @router.post("/service/{entry_id}/delete")
 def delete_service_entry(
-    request: Request, car: OwnedCar, entry: OwnedServiceEntry, db: DbSession
+    request: Request, car: ActiveCar, entry: OwnedServiceEntry, db: DbSession
 ) -> Response:
     entries_service.delete_entry(db, entry)
     db.commit()
@@ -237,7 +237,7 @@ def _fuel_form(
 
 @router.get("/fuel/new")
 def new_fuel_entry_page(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession
+    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession
 ) -> Response:
     # Made to be filled in quickly at the pump on a phone: only mileage, litres and amount
     # usually need typing.
@@ -255,7 +255,7 @@ def new_fuel_entry_page(
 def create_fuel_entry(
     request: Request,
     user: CurrentUser,
-    car: OwnedCar,
+    car: ActiveCar,
     db: DbSession,
     data: FormData,
     upload: ReceiptUpload,
@@ -277,7 +277,7 @@ def create_fuel_entry(
 
 @router.get("/fuel/{fuel_id}/edit")
 def edit_fuel_entry_page(
-    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedFuelEntry, db: DbSession
+    request: Request, user: CurrentUser, car: ActiveCar, entry: OwnedFuelEntry, db: DbSession
 ) -> Response:
     values = {
         "date": entry.date.isoformat(),
@@ -296,7 +296,7 @@ def edit_fuel_entry_page(
 def update_fuel_entry(
     request: Request,
     user: CurrentUser,
-    car: OwnedCar,
+    car: ActiveCar,
     entry: OwnedFuelEntry,
     db: DbSession,
     data: FormData,
@@ -343,7 +343,7 @@ def fuel_receipt(entry: OwnedFuelEntry, db: DbSession) -> Response:
 
 @router.get("/fuel/{fuel_id}/delete")
 def delete_fuel_entry_page(
-    request: Request, user: CurrentUser, car: OwnedCar, entry: OwnedFuelEntry
+    request: Request, user: CurrentUser, car: ActiveCar, entry: OwnedFuelEntry
 ) -> Response:
     details = (
         format_date(entry.date),
@@ -363,7 +363,7 @@ def delete_fuel_entry_page(
 
 @router.post("/fuel/{fuel_id}/delete")
 def delete_fuel_entry(
-    request: Request, car: OwnedCar, entry: OwnedFuelEntry, db: DbSession
+    request: Request, car: ActiveCar, entry: OwnedFuelEntry, db: DbSession
 ) -> Response:
     entries_service.delete_entry(db, entry)
     db.commit()
@@ -385,13 +385,13 @@ def _reading_form(
 
 
 @router.get("/odometer/new")
-def new_reading_page(request: Request, user: CurrentUser, car: OwnedCar) -> Response:
+def new_reading_page(request: Request, user: CurrentUser, car: ActiveCar) -> Response:
     return _reading_form(request, user, car, {"date": today().isoformat()})
 
 
 @router.post("/odometer/new")
 def create_reading(
-    request: Request, user: CurrentUser, car: OwnedCar, db: DbSession, data: FormData
+    request: Request, user: CurrentUser, car: ActiveCar, db: DbSession, data: FormData
 ) -> Response:
     try:
         form = parse_form(OdometerReadingForm, data)
@@ -405,7 +405,7 @@ def create_reading(
 
 @router.get("/odometer/{reading_id}/edit")
 def edit_reading_page(
-    request: Request, user: CurrentUser, car: OwnedCar, reading: OwnedReading
+    request: Request, user: CurrentUser, car: ActiveCar, reading: OwnedReading
 ) -> Response:
     values = {
         "date": reading.date.isoformat(),
@@ -419,7 +419,7 @@ def edit_reading_page(
 def update_reading(
     request: Request,
     user: CurrentUser,
-    car: OwnedCar,
+    car: ActiveCar,
     reading: OwnedReading,
     db: DbSession,
     data: FormData,
@@ -436,7 +436,7 @@ def update_reading(
 
 @router.get("/odometer/{reading_id}/delete")
 def delete_reading_page(
-    request: Request, user: CurrentUser, car: OwnedCar, reading: OwnedReading
+    request: Request, user: CurrentUser, car: ActiveCar, reading: OwnedReading
 ) -> Response:
     return _delete_page(
         request,
@@ -450,7 +450,7 @@ def delete_reading_page(
 
 @router.post("/odometer/{reading_id}/delete")
 def delete_reading(
-    request: Request, car: OwnedCar, reading: OwnedReading, db: DbSession
+    request: Request, car: ActiveCar, reading: OwnedReading, db: DbSession
 ) -> Response:
     entries_service.delete_entry(db, reading)
     db.commit()

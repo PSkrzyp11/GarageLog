@@ -189,6 +189,16 @@ input[aria-invalid="true"] {
   overflow-wrap: anywhere;
 }
 
+.alert-info {
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+}
+
+.archived-notice p {
+  margin: 0 0 0.5rem;
+}
+
 .alert-success {
   color: var(--color-success);
   background: var(--color-success-bg);

@@ -97,6 +97,22 @@ def get_owned_car(
 
 OwnedCar = Annotated[Car, Depends(get_owned_car)]
 
+
+def get_active_car(car: OwnedCar) -> Car:
+    """For every page that changes a car or its history (and the forms leading there).
+
+    An archived car is read-only: its history can be viewed and exported, nothing else.
+    """
+    if car.is_archived:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "To auto jest w archiwum. Przywróć je, żeby coś w nim zmienić.",
+        )
+    return car
+
+
+ActiveCar = Annotated[Car, Depends(get_active_car)]
+
 EntryId = Annotated[int, Path(ge=1, le=MAX_ID)]
 
 

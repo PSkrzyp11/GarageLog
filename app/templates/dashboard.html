@@ -45,11 +45,22 @@
   <p class="calendar-link">
     <a href="{{ url_for('all_reminders_calendar') }}">Terminy wszystkich aut do kalendarza (.ics)</a>
   </p>
+{% elif archived_count %}
+  <section class="card empty-state">
+    <p>Wszystkie Twoje auta są w archiwum.</p>
+    <a class="button" href="{{ url_for('new_car_page') }}">Dodaj auto</a>
+  </section>
 {% else %}
   <section class="card empty-state">
     <p>Nie masz jeszcze żadnego auta.</p>
     <p class="muted">Dodaj pierwsze auto, a potem zapisuj jego tankowania, naprawy i przeglądy.</p>
     <a class="button" href="{{ url_for('new_car_page') }}">Dodaj pierwsze auto</a>
   </section>
+{% endif %}
+
+{% if archived_count %}
+  <p class="archive-link">
+    <a href="{{ url_for('archived_cars') }}">Archiwum aut ({{ archived_count }})</a>
+  </p>
 {% endif %}
 {% endblock %}

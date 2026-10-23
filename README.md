@@ -23,7 +23,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 
 - **Konta** — rejestracja i logowanie, zmiana hasła, wylogowanie innych urządzeń; każdy
   widzi wyłącznie swoje auta i dane.
-- **Auta** — kilka aut na konto, paliwo główne + opcjonalna instalacja LPG.
+- **Auta** — kilka aut na konto, paliwo główne + opcjonalna instalacja LPG; sprzedane auto
+  trafia do archiwum: znika z pulpitu, a jego historia zostaje tylko do odczytu.
 - **Historia** — tankowania (pełne / częściowe / po pominiętym tankowaniu), serwis i inne
   wydatki, odczyty licznika; wspólna oś czasu z filtrem rodzaju i roku.
 - **Paragony** — do tankowania można dołączyć zdjęcie (także prosto z aparatu telefonu)
@@ -231,7 +232,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Archiwizacja sprzedanego auta, wykres spalania w czasie, paragony także przy serwisie,
+Wykres spalania w czasie, paragony także przy serwisie,
 subskrypcja kalendarza (zamiast pobierania pliku), reset hasła.
 
 ## Licencja

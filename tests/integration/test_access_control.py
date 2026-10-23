@@ -48,6 +48,8 @@ OWNED_ROUTES = [
     ("POST", "/cars/{car_id}/edit"),
     ("GET", "/cars/{car_id}/delete"),
     ("POST", "/cars/{car_id}/delete"),
+    ("POST", "/cars/{car_id}/archive"),
+    ("POST", "/cars/{car_id}/restore"),
     ("GET", "/cars/{car_id}/service/new"),
     ("POST", "/cars/{car_id}/service/new"),
     ("GET", "/cars/{car_id}/service/{entry_id}/edit"),
@@ -133,7 +135,7 @@ def send(client: TestClient, method: str, url: str) -> int:
     return post_form(client, url, ANY_FORM, form_page="/cars/new").status_code
 
 
-def assert_victim_data_unchanged(db: Session, victim: VictimData) -> None:
+def assert_victim_data_unchanged(db: Session, victim: VictimData, archived: bool = False) -> None:
     db.expire_all()
     car = db.get(Car, victim.car_id)
     entry = db.get(ServiceEntry, victim.entry_id)
@@ -141,6 +143,7 @@ def assert_victim_data_unchanged(db: Session, victim: VictimData) -> None:
     fuel = db.get(FuelEntry, victim.fuel_id)
     reminder = db.get(Reminder, victim.reminder_id)
     assert car is not None and car.name == "Golf"
+    assert (car.archived_at is not None) == archived  # nor archived or restored by others
     assert entry is not None and entry.title == "Wymiana oleju"
     assert reading is not None and reading.odometer_km == 90_000
     assert fuel is not None and fuel.liters == Decimal("42.50")

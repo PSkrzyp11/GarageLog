@@ -15,7 +15,9 @@
     {% if show_car %}<span class="muted">{{ view.car.name }}</span>{% endif %}
   </div>
   <h3>
+    {% if view.car.is_archived %}{{ reminder.title }}{% else %}
     <a href="{{ url_for('edit_reminder_page', car_id=view.car.id, reminder_id=reminder.id) }}">{{ reminder.title }}</a>
+    {% endif %}
   </h3>
   <p class="reminder-due">
     {{ due_text(reminder) }}
@@ -26,6 +28,7 @@
   {% if next_reminder %}
     <p class="reminder-next" role="status">Następne przypomnienie: {{ due_text(next_reminder) }}</p>
   {% endif %}
+  {% if not view.car.is_archived %}
   {% set action_url = url_for('reopen_reminder' if reminder.completed_at else 'complete_reminder', car_id=view.car.id, reminder_id=reminder.id) %}
   {# Without HTMX the page reloads; with HTMX only this card is replaced. #}
   <form method="post" class="inline-form" action="{{ action_url }}"
@@ -39,5 +42,6 @@
       <button type="submit" class="button button-small">Oznacz jako wykonane</button>
     {% endif %}
   </form>
+  {% endif %}
 </li>
 {% endmacro %}
