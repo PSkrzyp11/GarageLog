@@ -23,9 +23,12 @@
     });
   }
 
+  function cssVariable(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
   function cssColor(key) {
-    const variable = COLOR_VARIABLES[key] || "--color-muted";
-    return getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+    return cssVariable(COLOR_VARIABLES[key] || "--color-muted");
   }
 
   function draw(canvas) {
@@ -38,6 +41,9 @@
     const format = (value) => `${number.format(value)} ${spec.unit}`;
 
     canvas.parentElement.hidden = false;
+    // Axis labels, legend and grid lines in the colours of the current (light or dark) theme.
+    Chart.defaults.color = cssVariable("--color-muted");
+    Chart.defaults.borderColor = cssVariable("--color-border");
     new Chart(canvas, {
       type: stacked ? "bar" : "line",
       data: {

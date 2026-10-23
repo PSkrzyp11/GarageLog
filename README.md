@@ -49,7 +49,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   nic, bez dublowania wpisów, które już są.
 - **Kopie zapasowe** — kopia bazy codziennie i jedno polecenie do przywrócenia.
 - **Interfejs** — po polsku, responsywny, działa bez JavaScriptu; HTMX usprawnia filtry
-  i akcje w miejscu.
+  i akcje w miejscu; jasny lub ciemny według ustawień systemu, z kontrastem tekstu
+  sprawdzanym testem (WCAG AA) w obu wersjach.
 - **Na telefonie** — można dodać do ekranu głównego jak aplikację; „+ Tankowanie” na
   pulpicie otwiera formularz z dzisiejszą datą, paliwem z ostatniego tankowania i ostatnim
   przebiegiem jako podpowiedzią.
