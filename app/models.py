@@ -128,6 +128,9 @@ class UserSession(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
+    # The browser's User-Agent at login, shown on the account page as e.g. "Chrome, Windows"
+    # so the owner can tell their devices apart (and spot one that isn't theirs).
+    user_agent: Mapped[str | None] = mapped_column(String(300))
 
 
 class LoginFailure(Base):

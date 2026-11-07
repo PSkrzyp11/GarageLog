@@ -3,12 +3,14 @@
 Functions here only flush; the route decides when the whole operation is committed.
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.devices import describe_device
 from app.models import LoginFailure, User, UserSession
 from app.security import (
     generate_session_token,
@@ -20,6 +22,7 @@ from app.security import (
 )
 
 SESSION_LIFETIME = timedelta(days=14)
+USER_AGENT_MAX_LENGTH = 300  # the sessions.user_agent column
 
 # Login throttling: a few typos are fine; a password-guessing script gets stuck. Counted per
 # e-mail (guessing one account) and per IP address (trying many accounts from one place).
@@ -103,8 +106,12 @@ def clear_login_failures(db: Session, email: str) -> None:
     db.execute(delete(LoginFailure).where(LoginFailure.email == email))
 
 
-def create_session(db: Session, user: User) -> str:
-    """Start a new login session and return its token (for the cookie only — never stored)."""
+def create_session(db: Session, user: User, user_agent: str | None = None) -> str:
+    """Start a new login session and return its token (for the cookie only — never stored).
+
+    `user_agent` (the browser's User-Agent header) only helps the owner recognise the device
+    in the list on the account page; it is cut to the column's length.
+    """
     now = datetime.now(UTC)
     # Housekeeping: drop this user's expired sessions so the table does not grow forever.
     db.execute(
@@ -117,6 +124,7 @@ def create_session(db: Session, user: User) -> str:
             user_id=user.id,
             token_hash=hash_session_token(token),
             expires_at=now + SESSION_LIFETIME,
+            user_agent=user_agent[:USER_AGENT_MAX_LENGTH] if user_agent else None,
         )
     )
     db.flush()
@@ -138,17 +146,45 @@ def delete_session(db: Session, token: str) -> None:
     db.execute(delete(UserSession).where(UserSession.token_hash == hash_session_token(token)))
 
 
-def count_other_sessions(db: Session, user: User, current_token: str) -> int:
-    """Active logins of this user on other devices or browsers."""
-    return db.scalar(
-        select(func.count())
-        .select_from(UserSession)
-        .where(
+@dataclass(frozen=True)
+class DeviceSession:
+    id: int
+    device: str  # e.g. "Chrome, Windows"
+    logged_in_at: datetime
+    is_current: bool  # the browser looking at the list
+
+
+def list_sessions(db: Session, user: User, current_token: str) -> list[DeviceSession]:
+    """Active logins of the user: the current browser first, then the newest."""
+    current_hash = hash_session_token(current_token)
+    sessions = db.scalars(
+        select(UserSession)
+        .where(UserSession.user_id == user.id, UserSession.expires_at > datetime.now(UTC))
+        .order_by(UserSession.created_at.desc(), UserSession.id.desc())
+    )
+    devices = [
+        DeviceSession(
+            id=session.id,
+            device=describe_device(session.user_agent),
+            logged_in_at=session.created_at,
+            is_current=session.token_hash == current_hash,
+        )
+        for session in sessions
+    ]
+    return sorted(devices, key=lambda device: not device.is_current)  # stable: keeps the order
+
+
+def delete_other_session(db: Session, user: User, session_id: int, current_token: str) -> bool:
+    """Log out one other device. False if there is no such session of this user (or it is the
+    current one — that is what "Wyloguj" in the header is for)."""
+    result = db.execute(
+        delete(UserSession).where(
+            UserSession.id == session_id,
             UserSession.user_id == user.id,
             UserSession.token_hash != hash_session_token(current_token),
-            UserSession.expires_at > datetime.now(UTC),
         )
     )
+    return result.rowcount > 0
 
 
 def delete_other_sessions(db: Session, user: User, current_token: str) -> None:

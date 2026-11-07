@@ -862,6 +862,22 @@ input[type="checkbox"]:focus-visible {
   cursor: pointer;
 }
 
+/* Logged-in devices on the account page: name and date left, "Wyloguj" right. */
+.device-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space);
+}
+
+.device-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--space);
+  padding-block: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .button-link.danger-link {
   color: var(--color-error);
 }

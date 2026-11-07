@@ -1,5 +1,6 @@
 """Account page: changing the password and logging out other devices."""
 
+import re
 from collections.abc import Iterator
 
 import pytest
@@ -11,8 +12,15 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import get_db
 from app.main import create_app
-from app.models import User
-from tests.integration.helpers import PASSWORD, is_logged_in, login, post_form, register
+from app.models import User, UserSession
+from tests.integration.helpers import (
+    OTHER_EMAIL,
+    PASSWORD,
+    is_logged_in,
+    login,
+    post_form,
+    register,
+)
 
 NEW_PASSWORD = "zupełnie nowe hasło"
 
@@ -111,7 +119,7 @@ def test_new_password_is_validated(
 def test_logging_out_other_devices(client: TestClient, other_device: TestClient) -> None:
     register(client)
     login(other_device)
-    assert "Aktywne logowania" in client.get("/account").text
+    assert "Wyloguj wszystkie inne urządzenia" in client.get("/account").text
 
     response = post_form(client, "/account/logout-others", {}, form_page="/account")
 
@@ -130,3 +138,57 @@ def test_done_message_never_shows_text_from_the_url(client: TestClient) -> None:
 
     assert "hack" not in page
     assert "alert-success" not in page
+
+
+# --- Logged-in devices ------------------------------------------------------------------
+
+PHONE = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1"
+)
+DEVICE_LOGOUT = re.compile(r'action="http://testserver/account/sessions/(\d+)/logout"')
+
+
+def test_devices_are_listed_with_the_current_one_marked(
+    client: TestClient, other_device: TestClient
+) -> None:
+    register(client)
+    other_device.headers["user-agent"] = PHONE
+    login(other_device)
+
+    page = client.get("/account").text
+
+    assert "to urządzenie" in page
+    assert "Safari, iPhone" in page
+    assert len(DEVICE_LOGOUT.findall(page)) == 1  # a button only for the other device
+
+
+def test_one_device_can_be_logged_out(
+    client: TestClient, other_device: TestClient, db_session: Session
+) -> None:
+    register(client)
+    login(other_device)
+    (session_id,) = DEVICE_LOGOUT.findall(client.get("/account").text)
+
+    response = post_form(client, f"/account/sessions/{session_id}/logout", {}, "/account")
+
+    assert response.headers["location"].endswith("/account?done=session")
+    assert not is_logged_in(other_device)
+    assert is_logged_in(client)
+
+
+def test_the_current_or_someone_elses_session_is_not_found(
+    client: TestClient, other_device: TestClient, db_session: Session
+) -> None:
+    register(other_device, email=OTHER_EMAIL)
+    strangers_session = db_session.scalars(select(UserSession.id)).one()
+    register(client)
+    own_session = db_session.scalars(
+        select(UserSession.id).where(UserSession.id != strangers_session)
+    ).one()
+
+    for session_id in (strangers_session, own_session):
+        url = f"/account/sessions/{session_id}/logout"
+        assert post_form(client, url, {}, "/account").status_code == 404
+
+    assert is_logged_in(other_device) and is_logged_in(client)

@@ -30,13 +30,27 @@
 
   <section class="card">
     <h2>Zalogowane urządzenia</h2>
-    {% if other_sessions %}
-      <p>Aktywne logowania na innych urządzeniach lub w innych przeglądarkach:
-        <strong>{{ other_sessions }}</strong>. Jeśli któreś nie jest Twoje albo już z niego
-        nie korzystasz, wyloguj je.</p>
+    <ul class="device-list">
+      {% for session in sessions %}
+        <li>
+          <span>
+            <strong>{{ session.device }}</strong>{% if session.is_current %} <span class="badge">to urządzenie</span>{% endif %}
+            <br><span class="muted">zalogowano {{ session.logged_in_at | local_date | pl_date }}</span>
+          </span>
+          {% if not session.is_current %}
+            <form method="post" action="{{ url_for('logout_session', session_id=session.id) }}" class="inline-form">
+              {{ csrf_input(request) }}
+              <button type="submit" class="button-link danger-link">Wyloguj<span class="visually-hidden"> {{ session.device }}</span></button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% if sessions | length > 1 %}
+      <p class="muted">Jeśli któreś urządzenie nie jest Twoje, wyloguj je i zmień hasło.</p>
       <form method="post" action="{{ url_for('logout_other_sessions') }}">
         {{ csrf_input(request) }}
-        <button type="submit" class="button button-secondary">Wyloguj inne urządzenia</button>
+        <button type="submit" class="button button-secondary">Wyloguj wszystkie inne urządzenia</button>
       </form>
     {% else %}
       <p class="muted">Konto jest otwarte tylko w tej przeglądarce.</p>

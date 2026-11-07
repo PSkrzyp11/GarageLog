@@ -21,7 +21,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 
 ## Co potrafi
 
-- **Konta** — rejestracja i logowanie, zmiana hasła, wylogowanie innych urządzeń; każdy
+- **Konta** — rejestracja i logowanie, zmiana hasła, lista zalogowanych urządzeń (np. „Safari,
+  iPhone”) z wylogowaniem każdego z osobna; każdy
   widzi wyłącznie swoje auta i dane.
 - **Auta** — kilka aut na konto, paliwo główne + opcjonalna instalacja LPG; sprzedane auto
   trafia do archiwum: znika z pulpitu, a jego historia zostaje tylko do odczytu.
