@@ -72,7 +72,7 @@ def register(request: Request, db: DbSession, data: FormData) -> Response:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
 
-    session_token = auth_service.create_session(db, user)
+    session_token = auth_service.create_session(db, user, request.headers.get("user-agent"))
     db.commit()
     return _logged_in_redirect(request, session_token)
 
@@ -123,7 +123,7 @@ def login(request: Request, db: DbSession, data: FormData) -> Response:
     old_token = request.cookies.get(SESSION_COOKIE)
     if old_token:
         auth_service.delete_session(db, old_token)
-    session_token = auth_service.create_session(db, user)
+    session_token = auth_service.create_session(db, user, request.headers.get("user-agent"))
     db.commit()
     return _logged_in_redirect(request, session_token)
 

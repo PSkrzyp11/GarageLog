@@ -2,12 +2,13 @@
 secret calendar link."""
 
 from collections.abc import Mapping
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, HTTPException, Path, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
-from app.deps import CurrentUser, DbSession, FormData
+from app.deps import MAX_ID, CurrentUser, DbSession, FormData
 from app.models import User
 from app.schemas import PasswordChangeForm, form_errors, parse_form
 from app.security import SESSION_COOKIE
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/account")
 DONE_MESSAGES = {
     "password": "Hasło zostało zmienione. Inne urządzenia zostały wylogowane.",
     "sessions": "Wylogowano wszystkie inne urządzenia.",
+    "session": "Wylogowano wybrane urządzenie.",
     "calendar_off": "Link do kalendarza został wyłączony.",
 }
 
@@ -40,9 +42,7 @@ def _account_page(
         "account.html",
         {
             "user": user,
-            "other_sessions": auth_service.count_other_sessions(
-                db, user, request.cookies[SESSION_COOKIE]
-            ),
+            "sessions": auth_service.list_sessions(db, user, request.cookies[SESSION_COOKIE]),
             "done_message": DONE_MESSAGES.get(done),
             "errors": errors or {},
             # Only right after creating it: the link itself is not stored, just its hash.
@@ -92,6 +92,20 @@ def logout_other_sessions(request: Request, user: CurrentUser, db: DbSession) ->
     auth_service.delete_other_sessions(db, user, request.cookies[SESSION_COOKIE])
     db.commit()
     return _done(request, "sessions")
+
+
+@router.post("/sessions/{session_id}/logout")
+def logout_session(
+    request: Request,
+    user: CurrentUser,
+    db: DbSession,
+    session_id: Annotated[int, Path(ge=1, le=MAX_ID)],
+) -> Response:
+    """One other device. Someone else's session, or the current one, is "not found"."""
+    if not auth_service.delete_other_session(db, user, session_id, request.cookies[SESSION_COOKIE]):
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    db.commit()
+    return _done(request, "session")
 
 
 @router.post("/calendar")
