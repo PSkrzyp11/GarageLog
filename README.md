@@ -226,7 +226,9 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 - brak aut elektrycznych i ładowania;
 - wymiana licznika (cofnięcie przebiegu) nie jest obsługiwana;
 - przypomnienia tylko w aplikacji — bez e-maili;
-- brak resetu hasła, weryfikacji e-maila i usuwania konta z poziomu aplikacji;
+- aplikacja nie wysyła e-maili: zapomniane hasło resetuje administrator serwera
+  (`python -m scripts.reset_password <e-mail>`); brak weryfikacji e-maila i usuwania konta
+  z poziomu aplikacji;
 - formularz rejestracji zdradza, że e-mail jest już zajęty (bez potwierdzania e-maila nie da
   się tego uniknąć — formularz logowania niczego nie zdradza);
 - dwa jednoczesne zapisy z dwóch kart przeglądarki nie są blokowane (reguła przebiegu może
@@ -237,7 +239,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Subskrypcja kalendarza (zamiast pobierania pliku), reset hasła.
+Subskrypcja kalendarza (zamiast pobierania pliku), reset hasła przez e-mail.
 
 ## Licencja
 

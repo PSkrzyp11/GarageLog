@@ -77,6 +77,19 @@ scp 'uzytkownik@serwer:GarageLog/deploy/backups/*.dump' .
 
 Kopia musi pochodzić z tej samej wersji aplikacji co serwer (te same migracje).
 
+## Zapomniane hasło
+
+Aplikacja nie wysyła e-maili, więc hasło resetuje się na serwerze:
+
+```bash
+docker compose exec app python -m scripts.reset_password jan@example.com
+```
+
+Polecenie wypisze raz nowe, losowe hasło (nigdzie go nie zapisuje) — przekaż je właścicielowi
+konta, a on zmieni je na swoje na stronie „Konto”. Wszystkie sesje tego konta zostają
+zakończone, a licznik nieudanych logowań wyczyszczony. Własne hasło zamiast losowego:
+`docker compose exec -e NEW_PASSWORD=... app python -m scripts.reset_password jan@example.com`.
+
 ## Aktualizacja
 
 ```bash

@@ -36,6 +36,10 @@ class WrongPasswordError(Exception):
     pass
 
 
+class UnknownAccountError(Exception):
+    pass
+
+
 def register_user(db: Session, email: str, password: str) -> User:
     """Create an account. `email` must already be normalized (lowercase)."""
     user = User(email=email, password_hash=hash_password(password))
@@ -167,3 +171,18 @@ def change_password(
         raise WrongPasswordError
     user.password_hash = hash_password(new_password)
     delete_other_sessions(db, user, current_token)
+
+
+def reset_password(db: Session, email: str, new_password: str) -> User:
+    """For the server administrator (scripts/reset_password.py): the app sends no e-mails, so
+    a forgotten password is reset on the server. Every session of the account ends — if the
+    reset is because someone else got in, they are logged out too — and its failed logins are
+    forgotten, so the owner can log in at once."""
+    user = db.scalars(select(User).where(User.email == email.strip().lower())).one_or_none()
+    if user is None:
+        raise UnknownAccountError
+    user.password_hash = hash_password(new_password)
+    db.execute(delete(UserSession).where(UserSession.user_id == user.id))
+    clear_login_failures(db, user.email)
+    db.flush()
+    return user
