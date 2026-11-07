@@ -109,6 +109,10 @@ class User(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # Secret link to subscribe to the reminders in a calendar app. Only its SHA-256 hash is
+    # stored (like session tokens), so the link is shown once, when it is created.
+    calendar_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    calendar_token_created_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class UserSession(Base):

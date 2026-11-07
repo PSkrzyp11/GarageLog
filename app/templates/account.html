@@ -42,5 +42,45 @@
       <p class="muted">Konto jest otwarte tylko w tej przeglądarce.</p>
     {% endif %}
   </section>
+
+  <section class="card calendar-subscription">
+    <h2>Kalendarz</h2>
+    {% if calendar_url %}
+      <div class="alert alert-success" role="status">
+        <p><strong>Twój link do kalendarza.</strong> Skopiuj go teraz — ze względów
+          bezpieczeństwa nie pokażemy go ponownie.</p>
+      </div>
+      <label for="calendar-url">Link do subskrypcji</label>
+      <input id="calendar-url" type="text" readonly value="{{ calendar_url }}">
+      <ul class="muted">
+        <li>Kalendarz Google (w przeglądarce): Inne kalendarze → „+” → Z adresu URL → wklej link.</li>
+        <li>iPhone, Mac, Outlook: <a href="{{ webcal_url }}">otwórz link w kalendarzu</a>.</li>
+      </ul>
+      <p class="muted">Każdy, kto zna ten link, zobaczy terminy Twoich przypomnień — nie
+        udostępniaj go. Jeśli wycieknie, utwórz nowy (stary przestanie działać).</p>
+    {% elif user.calendar_token_hash %}
+      <p>Link do subskrypcji jest aktywny od {{ user.calendar_token_created_at | local_date | pl_date }}.
+        Kalendarz sam pobiera z niego aktualne terminy.</p>
+    {% else %}
+      <p>Utwórz tajny link i dodaj go w Kalendarzu Google, Apple albo w Outlooku: terminy
+        przypomnień wszystkich aut będą się aktualizować same, bez pobierania pliku.</p>
+      <p class="muted">Kalendarz Google pobiera link przez internet, więc zadziała dopiero
+        z aplikacją na publicznym serwerze.</p>
+    {% endif %}
+    <div class="form-actions">
+      <form method="post" action="{{ url_for('create_calendar_link') }}" class="inline-form">
+        {{ csrf_input(request) }}
+        <button type="submit" class="button {% if user.calendar_token_hash %}button-secondary{% endif %}">
+          {{ "Utwórz nowy link" if user.calendar_token_hash else "Utwórz link" }}
+        </button>
+      </form>
+      {% if user.calendar_token_hash %}
+        <form method="post" action="{{ url_for('revoke_calendar_link') }}" class="inline-form">
+          {{ csrf_input(request) }}
+          <button type="submit" class="button-link danger-link">Wyłącz link</button>
+        </form>
+      {% endif %}
+    </div>
+  </section>
 </div>
 {% endblock %}

@@ -1,20 +1,23 @@
-"""Reminders of one car (/cars/{car_id}/reminders/...)."""
+"""Reminders of one car (/cars/{car_id}/reminders/...) and the calendar files (.ics)."""
 
 from collections.abc import Mapping
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, HTTPException, Path, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
 from app.deps import ActiveCar, CurrentUser, DbSession, FormData, OwnedCar, OwnedReminder
 from app.models import Car, Reminder, User
 from app.schemas import ReminderForm, form_errors, parse_form
+from app.services import auth as auth_service
 from app.services import export as export_service
 from app.services import reminders as reminders_service
 from app.templating import is_htmx, render
 
 router = APIRouter(prefix="/cars/{car_id}/reminders")
-# Not under one car: the due dates of all the user's cars in one file.
+# Not under one car: the due dates of all the user's cars in one file (downloaded, or
+# subscribed to with a secret link).
 calendar_router = APIRouter()
 
 
@@ -75,6 +78,24 @@ def car_reminders_calendar(car: OwnedCar, db: DbSession) -> Response:
     views = reminders_service.car_reminders(db, car).active
     content = reminders_service.calendar_file(views, f"GarageLog — {car.name}")
     return _calendar_download(content, export_service.filename(car, "przypomnienia", "ics"))
+
+
+@calendar_router.get("/calendar/{token}.ics")
+def subscribed_calendar(token: Annotated[str, Path(max_length=64)], db: DbSession) -> Response:
+    """The same file as /reminders.ics, but fetched by a calendar app on its own schedule:
+    there is no login cookie, the secret token in the URL is the access check. An unknown or
+    revoked token gives 404, like any page that does not exist."""
+    user = auth_service.user_by_calendar_token(db, token)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
+    content = reminders_service.calendar_file(
+        reminders_service.active_reminders(db, user), "GarageLog — przypomnienia"
+    )
+    return Response(
+        content,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @calendar_router.get("/reminders.ics")

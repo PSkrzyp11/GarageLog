@@ -43,7 +43,8 @@ uzasadnić — od modelu danych po kontrolę dostępu.
   (każdy odcinek od pełnego do pełnego baku), z tabelą danych obok każdego wykresu.
 - **Przypomnienia** — według daty, przebiegu albo obu („co nastąpi wcześniej”), także
   cykliczne (np. olej co rok lub 15 000 km), z sekcją „Do zrobienia” na pulpicie; terminy
-  można pobrać jako plik `.ics` do Kalendarza Google, Apple albo Outlooka.
+  można pobrać jako plik `.ics` albo zasubskrybować tajnym linkiem (Kalendarz Google, Apple,
+  Outlook), żeby aktualizowały się same.
 - **Eksport i import CSV** — pod polskiego Excela, odporny na CSV injection; wyeksportowane
   pliki (także poprawione w Excelu) można wczytać do innego auta lub konta — wszystko albo
   nic, bez dublowania wpisów, które już są.
@@ -190,6 +191,8 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
   PDF tylko do pobrania, do 10 MB ([ADR 0009](docs/decisions/0009-receipts-in-database.md)).
 - Zależności: Dependabot proponuje aktualizacje raz w miesiącu; akcje GitHub w CI są
   przypięte do SHA commitów, nie do tagów, które można przesunąć.
+- Link do subskrypcji kalendarza: w bazie tylko jego skrót SHA-256 (link widać raz), w logach
+  serwera token jest maskowany; nowy link unieważnia stary.
 - Sekrety tylko w zmiennych środowiskowych (`.env` poza repozytorium); w produkcji aplikacja
   nie wystartuje z domyślnym `SECRET_KEY`.
 
@@ -239,7 +242,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 
 ## Możliwe dalsze kroki
 
-Subskrypcja kalendarza (zamiast pobierania pliku), reset hasła przez e-mail.
+Reset hasła przez e-mail.
 
 ## Licencja
 

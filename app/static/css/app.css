@@ -862,6 +862,16 @@ input[type="checkbox"]:focus-visible {
   cursor: pointer;
 }
 
+.button-link.danger-link {
+  color: var(--color-error);
+}
+
+/* The calendar link is long: let it fit the card and be easy to select on a phone. */
+.calendar-subscription input[readonly] {
+  width: 100%;
+  margin-block: 0.25rem var(--space);
+}
+
 /* Year by year: a wide table scrolls sideways on a phone instead of squeezing the columns. */
 .table-wide {
   overflow-x: auto;

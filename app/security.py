@@ -5,6 +5,7 @@ FastAPI has no built-in user sessions or CSRF protection, so they live here, in 
 
 import hashlib
 import hmac
+import logging
 import re
 import secrets
 from collections.abc import Awaitable, Callable
@@ -53,6 +54,8 @@ UPLOAD_LIMITS = [
     ),
     (re.compile(r"/cars/\d+/import"), 2 * MAX_CSV_BYTES + MAX_REQUEST_BODY_BYTES),  # two files
 ]
+
+CALENDAR_TOKEN_IN_PATH = re.compile(r"/calendar/[^/?]+")
 
 # --- Passwords --------------------------------------------------------------------------
 
@@ -255,3 +258,22 @@ class RequestBodyLimitMiddleware:
             return message
 
         await self.app(scope, limited_receive, send)
+
+
+class HideCalendarTokens(logging.Filter):
+    """uvicorn's access log writes the path of every request. For /calendar/<token>.ics the
+    path is the secret itself, so it is masked before the line is written:
+    "GET /calendar/…ics" instead of the token."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # uvicorn logs: '%s - "%s %s HTTP/%s" %d' (client, method, path, version, status).
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str):
+            record.args = (*args[:2], CALENDAR_TOKEN_IN_PATH.sub("/calendar/…", args[2]), *args[3:])
+        return True
+
+
+def hide_calendar_tokens_in_access_log() -> None:
+    logger = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, HideCalendarTokens) for f in logger.filters):  # once per process
+        logger.addFilter(HideCalendarTokens())
