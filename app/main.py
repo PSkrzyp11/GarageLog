@@ -10,7 +10,12 @@ from app.config import Settings, get_settings
 from app.db import create_db_engine, create_session_factory
 from app.deps import LoginRequired
 from app.routes import account, auth, cars, entries, export, importing, pages, reminders
-from app.security import RequestBodyLimitMiddleware, security_middleware, verify_csrf
+from app.security import (
+    RequestBodyLimitMiddleware,
+    hide_calendar_tokens_in_access_log,
+    security_middleware,
+    verify_csrf,
+)
 from app.static_files import STATIC_DIR, VersionedStaticFiles
 from app.templating import render
 
@@ -63,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         dependencies=[Depends(verify_csrf)],
     )
     app.state.settings = settings
+    hide_calendar_tokens_in_access_log()
     app.state.session_factory = create_session_factory(engine)
 
     # Added first, so it sits *inside* security_middleware (the last one added runs first).

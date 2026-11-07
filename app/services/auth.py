@@ -186,3 +186,28 @@ def reset_password(db: Session, email: str, new_password: str) -> User:
     clear_login_failures(db, user.email)
     db.flush()
     return user
+
+
+# --- Calendar subscription --------------------------------------------------------------
+
+
+def create_calendar_token(db: Session, user: User) -> str:
+    """A new secret calendar link (the previous one stops working). Returned once, for the
+    page that shows it; only its hash is kept."""
+    token = generate_session_token()
+    user.calendar_token_hash = hash_session_token(token)
+    user.calendar_token_created_at = datetime.now(UTC)
+    db.flush()
+    return token
+
+
+def revoke_calendar_token(db: Session, user: User) -> None:
+    user.calendar_token_hash = None
+    user.calendar_token_created_at = None
+    db.flush()
+
+
+def user_by_calendar_token(db: Session, token: str) -> User | None:
+    return db.scalars(
+        select(User).where(User.calendar_token_hash == hash_session_token(token))
+    ).one_or_none()
