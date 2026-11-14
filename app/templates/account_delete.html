@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "_forms.html" as forms %}
+
+{% block title %}Usuń konto — GarageLog{% endblock %}
+
+{% block content %}
+<p><a href="{{ url_for('account_page') }}">← Konto</a></p>
+
+<section class="card auth-card">
+  <h1>Usunąć konto?</h1>
+  <p>Zostaną usunięte <strong>na zawsze</strong>: konto {{ user.email }}, wszystkie auta (także
+    z archiwum), ich historia, przypomnienia, paragony i dokumenty. Tego nie da się cofnąć.</p>
+  <p>Jeśli chcesz zachować swoje dane,
+    <a href="{{ url_for('export_account') }}">najpierw pobierz ich kopię (ZIP)</a>.</p>
+
+  <form method="post" action="{{ url_for('delete_account') }}" class="form">
+    {{ csrf_input(request) }}
+    {{ forms.field("password", "Twoje hasło", type="password", error=errors.get("password"),
+                   autocomplete="current-password",
+                   hint="Dla bezpieczeństwa: potwierdź, że to Ty.") }}
+    <div class="form-actions">
+      <button type="submit" class="button button-danger">Usuń konto i wszystkie dane</button>
+      <a href="{{ url_for('account_page') }}">Anuluj</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

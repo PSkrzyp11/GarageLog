@@ -57,6 +57,16 @@
     {% endif %}
   </section>
 
+  <section class="card">
+    <h2>Twoje dane</h2>
+    <p>Kopia wszystkich Twoich danych w GarageLog: auta (także z archiwum), wpisy, odczyty
+      licznika, przypomnienia, paragony i dokumenty — w jednym pliku ZIP, z plikami CSV dla
+      Excela.</p>
+    <p><a class="button button-secondary" href="{{ url_for('export_account') }}">Pobierz wszystkie dane (ZIP)</a></p>
+    <p class="muted">Nie potrzebujesz już konta?
+      <a class="danger-link" href="{{ url_for('delete_account_page') }}">Usuń konto</a></p>
+  </section>
+
   <section class="card calendar-subscription">
     <h2>Kalendarz</h2>
     {% if calendar_url %}

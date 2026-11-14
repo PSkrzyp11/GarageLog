@@ -192,6 +192,9 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
   PDF tylko do pobrania, do 10 MB ([ADR 0009](docs/decisions/0009-receipts-in-database.md)).
 - Zależności: Dependabot proponuje aktualizacje raz w miesiącu; akcje GitHub w CI są
   przypięte do SHA commitów, nie do tagów, które można przesunąć.
+- RODO: na stronie konta można pobrać wszystkie dane w jednym ZIP-ie (CSV + paragony
+  i dokumenty) i usunąć konto; usunięcie wymaga hasła i kasuje kaskadowo wszystko, także
+  zapisane nieudane logowania.
 - Link do subskrypcji kalendarza: w bazie tylko jego skrót SHA-256 (link widać raz), w logach
   serwera token jest maskowany; nowy link unieważnia stary.
 - Sekrety tylko w zmiennych środowiskowych (`.env` poza repozytorium); w produkcji aplikacja
@@ -231,8 +234,7 @@ trzymać przez rok bez ryzyka nieaktualnego stylu.
 - wymiana licznika (cofnięcie przebiegu) nie jest obsługiwana;
 - przypomnienia tylko w aplikacji — bez e-maili;
 - aplikacja nie wysyła e-maili: zapomniane hasło resetuje administrator serwera
-  (`python -m scripts.reset_password <e-mail>`); brak weryfikacji e-maila i usuwania konta
-  z poziomu aplikacji;
+  (`python -m scripts.reset_password <e-mail>`); brak weryfikacji e-maila;
 - formularz rejestracji zdradza, że e-mail jest już zajęty (bez potwierdzania e-maila nie da
   się tego uniknąć — formularz logowania niczego nie zdradza);
 - dwa jednoczesne zapisy z dwóch kart przeglądarki nie są blokowane (reguła przebiegu może
