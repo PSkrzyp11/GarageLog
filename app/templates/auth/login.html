@@ -7,6 +7,9 @@
 <section class="card auth-card">
   <h1>Zaloguj się</h1>
   <p class="muted">Historia serwisowa, tankowania i koszty Twoich aut w jednym miejscu.</p>
+  {% if account_deleted %}
+    <div class="alert alert-success" role="status">Konto i wszystkie jego dane zostały usunięte.</div>
+  {% endif %}
   {{ forms.form_alert(errors.get("form")) }}
 
   <form method="post" action="{{ url_for('login') }}" class="form">
