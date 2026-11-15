@@ -78,10 +78,11 @@ def register(request: Request, db: DbSession, data: FormData) -> Response:
 
 
 @router.get("/login")
-def login_page(request: Request, user: OptionalUser) -> Response:
+def login_page(request: Request, user: OptionalUser, deleted: str = "") -> Response:
     if user is not None:
         return RedirectResponse(request.url_for("dashboard"), status.HTTP_303_SEE_OTHER)
-    return render(request, "auth/login.html")
+    # ?deleted=1 after deleting the account; a fixed message, never text from the URL.
+    return render(request, "auth/login.html", {"account_deleted": deleted == "1"})
 
 
 @router.post("/login")
