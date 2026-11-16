@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import Settings, get_settings
@@ -13,6 +13,7 @@ from app.routes import account, auth, cars, entries, export, importing, pages, r
 from app.security import (
     RequestBodyLimitMiddleware,
     hide_calendar_tokens_in_access_log,
+    security_headers,
     security_middleware,
     verify_csrf,
 )
@@ -23,6 +24,10 @@ ERROR_MESSAGES = {
     404: "Nie znaleziono strony.",
     405: "Ta operacja nie jest dozwolona.",
 }
+SERVER_ERROR_MESSAGE = "Coś poszło nie tak po stronie serwera."
+SERVER_ERROR_HINT = (
+    "To nie Twoja wina. Jeśli wysyłany formularz się nie zapisał, spróbuj ponownie za chwilę."
+)
 
 
 async def redirect_to_login(request: Request, exc: Exception) -> Response:
@@ -39,6 +44,26 @@ async def render_http_error(request: Request, exc: Exception) -> Response:
         status_code=exc.status_code,
         headers=exc.headers,
     )
+
+
+async def render_server_error(request: Request, exc: Exception) -> Response:
+    """A bug or a database outage: a Polish page instead of Starlette's bare "Internal Server
+    Error". Starlette still re-raises the exception, so the traceback lands in the server log;
+    the page shows nothing of it. The database may be what failed, so the page reads nothing
+    from it (no user in the header)."""
+    headers = {**security_headers(request), "Cache-Control": "no-store"}
+    try:
+        return render(
+            request,
+            "error.html",
+            {"status_code": 500, "message": SERVER_ERROR_MESSAGE, "hint": SERVER_ERROR_HINT},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            headers=headers,
+        )
+    except Exception:  # the page itself failed (e.g. a broken template): plain text then
+        return PlainTextResponse(
+            SERVER_ERROR_MESSAGE, status.HTTP_500_INTERNAL_SERVER_ERROR, headers=headers
+        )
 
 
 async def render_not_found(request: Request, exc: Exception) -> Response:
@@ -78,6 +103,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_exception_handler(LoginRequired, redirect_to_login)
     app.add_exception_handler(StarletteHTTPException, render_http_error)
     app.add_exception_handler(RequestValidationError, render_not_found)
+    # Starlette gives this one to its outermost middleware (ServerErrorMiddleware).
+    app.add_exception_handler(Exception, render_server_error)
 
     app.mount("/static", VersionedStaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(pages.router)

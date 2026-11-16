@@ -197,6 +197,8 @@ Kwoty są liczone na `Decimal` i zapisywane jako `NUMERIC` ([ADR 0005](docs/deci
   zapisane nieudane logowania.
 - Link do subskrypcji kalendarza: w bazie tylko jego skrót SHA-256 (link widać raz), w logach
   serwera token jest maskowany; nowy link unieważnia stary.
+- Nieoczekiwany błąd (np. awaria bazy) daje polską stronę 500 z tymi samymi nagłówkami
+  bezpieczeństwa i bez szczegółów błędu; pełny traceback trafia tylko do logu serwera.
 - Sekrety tylko w zmiennych środowiskowych (`.env` poza repozytorium); w produkcji aplikacja
   nie wystartuje z domyślnym `SECRET_KEY`.
 
