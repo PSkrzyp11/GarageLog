@@ -100,4 +100,18 @@ def test_pages_fit_a_phone_screen(new_page: NewPage) -> None:
         overflow = page.evaluate(
             "document.documentElement.scrollWidth - document.documentElement.clientWidth"
         )
-        assert overflow <= 0, f"{path} scrolls sideways by {overflow}px on a phone"
+        assert overflow <= 0, (
+            f"{path} scrolls sideways by {overflow}px on a phone; too wide: "
+            + ", ".join(page.evaluate(TOO_WIDE))
+        )
+
+
+# The elements that stick out past the right edge of the screen, for the failure message.
+TOO_WIDE = """() => {
+  const width = document.documentElement.clientWidth;
+  return [...document.querySelectorAll("body *")]
+    .filter((el) => el.getBoundingClientRect().right > width + 0.5)
+    .slice(0, 5)
+    .map((el) => `<${el.tagName.toLowerCase()} class="${el.className}">`
+                 + ` ${(el.textContent || "").trim().slice(0, 40)}`);
+}"""
