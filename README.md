@@ -14,10 +14,14 @@ uzasadnić — od modelu danych po kontrolę dostępu.
 | Historia auta | Koszty i spalanie (benzyna + LPG) |
 |---|---|
 | ![Oś czasu tankowań i wpisów serwisowych z filtrem](docs/screenshots/history.png) | ![Koszt całkowity, koszt na km, podział na kategorie, spalanie z tabelą odcinków](docs/screenshots/costs.png) |
-| **Wykresy** | **Walidacja przebiegu** |
-| ![Wydatki miesięczne i cena benzyny oraz LPG w czasie](docs/screenshots/charts.png) | ![Komunikat: późniejszy wpis ma mniejszy przebieg](docs/screenshots/validation.png) |
-| **Telefon (390 px)** | |
-| ![Podsumowanie kosztów na telefonie](docs/screenshots/mobile-costs.png) | |
+| **Wykresy** | **Rok po roku** |
+| ![Wydatki miesięczne i cena benzyny oraz LPG w czasie](docs/screenshots/charts.png) | ![Wydatki w kolejnych latach: wykres i tabela z dystansem, kosztem na km i spalaniem](docs/screenshots/years.png) |
+| **Walidacja przebiegu** | **Tryb ciemny** |
+| ![Komunikat: późniejszy wpis ma mniejszy przebieg](docs/screenshots/validation.png) | ![Strona kosztów w ciemnym motywie](docs/screenshots/dark.png) |
+| **Telefon (390 px)** | **Tankowanie z pulpitu na telefonie** |
+| ![Podsumowanie kosztów na telefonie](docs/screenshots/mobile-costs.png) | ![Animacja: „+ Tankowanie” na pulpicie, przebieg, litry i kwota, zapis i koszty auta](docs/screenshots/add-refuel.gif) |
+
+Zrzuty pochodzą z konta demo (`scripts/seed_demo.py`) — wszystkie dane są fikcyjne.
 
 ## Co potrafi
 
