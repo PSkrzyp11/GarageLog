@@ -216,11 +216,18 @@ async def security_middleware(
     if new_csrf_token:
         set_cookie(response, request, CSRF_COOKIE, new_csrf_token)
 
-    response.headers.update(SECURITY_HEADERS)
+    response.headers.update(security_headers(request))
+    return response
+
+
+def security_headers(request: Request) -> dict[str, str]:
+    """Headers for every response. The 500 page adds them itself: it is sent from outside
+    every middleware, so security_middleware never sees it."""
+    headers = dict(SECURITY_HEADERS)
     if request.app.state.settings.app_env == "production":
         # Production runs only behind HTTPS: browsers must never fall back to plain HTTP.
-        response.headers["Strict-Transport-Security"] = HSTS_HEADER
-    return response
+        headers["Strict-Transport-Security"] = HSTS_HEADER
+    return headers
 
 
 class RequestBodyLimitMiddleware:
