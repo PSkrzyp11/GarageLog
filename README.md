@@ -69,7 +69,7 @@ Zrzuty pochodzą z konta demo (`scripts/seed_demo.py`) — wszystkie dane są fi
 | Baza | PostgreSQL 18, SQLAlchemy 2.0, Alembic |
 | Interfejs | Jinja2 (renderowanie na serwerze), własny CSS, HTMX 2, Chart.js 4 |
 | Bezpieczeństwo | Argon2id, sesje w bazie, CSRF, CSP |
-| Jakość | pytest (testy na prawdziwym PostgreSQL), ruff, GitHub Actions |
+| Jakość | pytest (testy na prawdziwym PostgreSQL), Playwright (testy w przeglądarce), ruff, GitHub Actions |
 | Uruchamianie | Docker Compose, uv |
 
 Celowo **bez** SPA, mikroserwisów, kolejek i zewnętrznych usług — patrz
@@ -140,6 +140,21 @@ uv run pytest
 Testy integracyjne tworzą przy każdym uruchomieniu osobną bazę `garagelog_test`, migrują ją
 Alembikiem, a każdy test działa w wycofywanej transakcji
 ([ADR 0006](docs/decisions/0006-tests-on-real-postgres.md)).
+
+Testy w przeglądarce (`tests/e2e`, Playwright + Chromium) uruchamiają aplikację na osobnej
+bazie `garagelog_e2e_test` i sprawdzają to, czego nie widzi klient testowy: podmiany HTMX
+bez przeładowania strony, wykresy, Content-Security-Policy (każdy błąd w konsoli
+przeglądarki oblewa test), działanie bez JavaScriptu i brak przewijania w bok na telefonie.
+W CI działają w osobnym jobie; lokalnie:
+
+```bash
+uv sync --group e2e
+uv run playwright install chromium
+uv run pytest tests/e2e
+```
+
+Bez grupy `e2e` zwykłe `uv run pytest` je pomija. Zrzuty do README odświeża
+`scripts/take_screenshots.py` (opis w pliku).
 
 ## Jak to działa
 
