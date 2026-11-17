@@ -346,9 +346,13 @@ summary:focus-visible {
 
 /* Car tabs */
 
+/* Four tabs barely fit a phone, and the current one is bold: with a wide system font
+   "Przypomnienia" stuck out past the screen. A smaller gap on narrow screens, and a second
+   line rather than sideways scrolling if they still do not fit. */
 .tabs {
   display: flex;
-  gap: var(--space);
+  flex-wrap: wrap;
+  column-gap: clamp(0.5rem, 3vw, var(--space));
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space);
 }
